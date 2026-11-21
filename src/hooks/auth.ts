@@ -140,12 +140,25 @@ export const useAuth = ({ middleware, redirectIfAuthenticated }: UseAuthOptions 
             })
     }
 
+    /**
+     * Always hit /logout (never gate it on a stale SWR `error`) with a fresh CSRF token: if this
+     * request silently fails (e.g. 419), the session + remember-me cookie survive and /login
+     * bounces the user straight back to /home. 401 = already signed out, which is fine.
+     */
     const logout = async () => {
-        if (!error) {
-            await axios.post('/logout').catch(() => undefined)
-            await mutate(undefined, { revalidate: false })
+        const post = () => axios.post('/logout')
+        try {
+            await csrf()
+            await post()
+        } catch (err) {
+            const status = (err as AxiosError).response?.status
+            if (status === 419) {
+                await csrf()
+                await post().catch(() => undefined)
+            }
         }
-        window.location.pathname = '/login'
+        await mutate(undefined, { revalidate: false })
+        window.location.href = '/login'
     }
 
     useEffect(() => {
