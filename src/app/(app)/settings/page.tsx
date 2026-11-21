@@ -128,7 +128,7 @@ export default function SettingsPage() {
                 </button>
             </Card>
 
-            <p className="text-center text-xs text-muted">Traduksyon.io · {TAGLINE}</p>
+            <p className="text-center text-xs text-muted">Traduksyon.com · {TAGLINE}</p>
         </div>
     )
 }

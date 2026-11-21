@@ -1,4 +1,4 @@
-import { CreditCard, FileText, Home, Languages, Receipt, Settings, Users } from 'lucide-react'
+import { ClipboardList, CreditCard, FileText, Home, Languages, Receipt, ScrollText, Settings, Users } from 'lucide-react'
 import type { AuthUser } from '@/types'
 import { hasPermission } from '@/utils/permissions'
 
@@ -14,6 +14,8 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
     { href: '/home', label: 'Home', Icon: Home, mobile: true },
     { href: '/meetings', label: 'My meetings', Icon: FileText, mobile: true },
+    { href: '/minutes', label: 'Minutes', Icon: ClipboardList },
+    { href: '/reports', label: 'Committee reports', Icon: ScrollText },
     { href: '/translate', label: 'Translate', Icon: Languages, mobile: true },
     { href: '/billing', label: 'Subscription', Icon: CreditCard },
     { href: '/users', label: 'Users', Icon: Users, visible: u => hasPermission(u, 'users.access') },

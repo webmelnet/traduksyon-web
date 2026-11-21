@@ -1,7 +1,7 @@
 'use client'
 
 import useSWR from 'swr'
-import { AlertTriangle, ArrowLeft, Check, ChevronDown, Copy, Download, FileText, Pencil, RotateCcw, Trash2, Users, X } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Check, ClipboardList, Copy, Pencil, RotateCcw, Trash2, Users, X } from 'lucide-react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -13,6 +13,7 @@ import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import Input from '@/components/ui/Input'
 import Modal from '@/components/ui/Modal'
+import DownloadMenu from '@/components/ui/DownloadMenu'
 import { Spinner } from '@/components/ui/Spinner'
 import { useToast } from '@/contexts/ToastContext'
 import axios from '@/lib/axios'
@@ -54,6 +55,20 @@ export default function TranscriptionPage() {
         if (!a) return
         a.currentTime = secs
         a.play().catch(() => undefined)
+    }, [])
+
+    /** Editing a line pauses playback; saving resumes it if it was playing when the edit began. */
+    const resumeAfterEditRef = useRef(false)
+    const pauseForEdit = useCallback(() => {
+        const a = audioRef.current
+        if (!a) return
+        resumeAfterEditRef.current = !a.paused && !a.ended
+        a.pause()
+    }, [])
+    const resumeAfterEdit = useCallback(() => {
+        const a = audioRef.current
+        if (a && resumeAfterEditRef.current) a.play().catch(() => undefined)
+        resumeAfterEditRef.current = false
     }, [])
 
     /** Saves a manual correction; the API realigns word timings so seeking/highlighting keep working. */
@@ -144,13 +159,16 @@ export default function TranscriptionPage() {
                         <span>· {formatDateTime(t.created_at)}</span>
                     </div>
                 </div>
-                <div className="flex shrink-0 gap-2">
+                <div className="flex shrink-0 flex-wrap gap-2">
                     {t.status === 'completed' && (
                         <>
                             <Button variant="secondary" size="sm" icon={<Copy className="h-4 w-4" />} onClick={copy}>
                                 Copy
                             </Button>
                             <DownloadMenu onPick={download} />
+                            <Button variant="ai" size="sm" icon={<ClipboardList className="h-4 w-4" />} onClick={() => router.push(`/minutes?transcription=${t.id}`)}>
+                                Minutes
+                            </Button>
                         </>
                     )}
                     <Button variant="secondary" size="sm" icon={<Trash2 className="h-4 w-4 text-danger" />} onClick={() => setDeleteOpen(true)} disabled={t.status === 'processing'} aria-label="Delete" />
@@ -236,6 +254,8 @@ export default function TranscriptionPage() {
                                             activeTime={i === activeIndex ? time : null}
                                             onSeek={seek}
                                             onSave={saveSegment}
+                                            onEditStart={pauseForEdit}
+                                            onEditSaved={resumeAfterEdit}
                                         />
                                     ))}
                                 </ol>
@@ -310,64 +330,6 @@ export default function TranscriptionPage() {
     )
 }
 
-const FORMATS: { format: ExportFormat; label: string; hint: string }[] = [
-    { format: 'docx', label: 'Word (.docx)', hint: 'Editable document' },
-    { format: 'pdf', label: 'PDF (.pdf)', hint: 'For printing or sharing' },
-    { format: 'txt', label: 'Plain text (.txt)', hint: 'Simple text file' },
-]
-
-function DownloadMenu({ onPick }: { onPick: (format: ExportFormat) => Promise<void> }) {
-    const [open, setOpen] = useState(false)
-    const [working, setWorking] = useState<ExportFormat | null>(null)
-    const ref = useRef<HTMLDivElement>(null)
-
-    useEffect(() => {
-        if (!open) return
-        const close = (e: MouseEvent | KeyboardEvent) => {
-            if (e instanceof KeyboardEvent ? e.key === 'Escape' : !ref.current?.contains(e.target as Node)) setOpen(false)
-        }
-        document.addEventListener('mousedown', close)
-        document.addEventListener('keydown', close)
-        return () => {
-            document.removeEventListener('mousedown', close)
-            document.removeEventListener('keydown', close)
-        }
-    }, [open])
-
-    const pick = async (format: ExportFormat) => {
-        setWorking(format)
-        await onPick(format)
-        setWorking(null)
-        setOpen(false)
-    }
-
-    return (
-        <div ref={ref} className="relative">
-            <Button variant="secondary" size="sm" loading={working !== null} icon={<Download className="h-4 w-4" />} onClick={() => setOpen(o => !o)} aria-haspopup="menu" aria-expanded={open}>
-                Download <ChevronDown className="-mr-1 h-3.5 w-3.5" />
-            </Button>
-            {open && (
-                <div role="menu" className="absolute right-0 z-20 mt-1.5 w-56 overflow-hidden rounded-xl border border-line bg-white py-1 shadow-lg">
-                    {FORMATS.map(f => (
-                        <button
-                            key={f.format}
-                            role="menuitem"
-                            disabled={working !== null}
-                            onClick={() => pick(f.format)}
-                            className="flex w-full items-start gap-2.5 px-3 py-2 text-left hover:bg-canvas disabled:opacity-60">
-                            <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted" />
-                            <span>
-                                <span className="block text-sm font-medium text-body">{f.label}</span>
-                                <span className="block text-xs text-muted">{f.hint}</span>
-                            </span>
-                        </button>
-                    ))}
-                </div>
-            )}
-        </div>
-    )
-}
-
 function BackLink() {
     return (
         <Link href="/meetings" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted hover:text-body">
@@ -385,6 +347,8 @@ const SegmentRow = memo(function SegmentRow({
     activeTime,
     onSeek,
     onSave,
+    onEditStart,
+    onEditSaved,
 }: {
     index: number
     segment: TranscriptSegment
@@ -393,6 +357,8 @@ const SegmentRow = memo(function SegmentRow({
     activeTime: number | null
     onSeek: (secs: number) => void
     onSave: (index: number, text: string) => Promise<void>
+    onEditStart: () => void
+    onEditSaved: () => void
 }) {
     const { toast } = useToast()
     const [editing, setEditing] = useState(false)
@@ -404,16 +370,21 @@ const SegmentRow = memo(function SegmentRow({
     const startEdit = () => {
         setDraft(original)
         setEditing(true)
+        onEditStart()
     }
 
     const save = async () => {
         const text = draft.trim().replace(/\s+/g, ' ')
         if (!text) return toast('The line can’t be empty.', 'error')
-        if (text === original) return setEditing(false)
+        if (text === original) {
+            setEditing(false)
+            return onEditSaved()
+        }
         setSaving(true)
         try {
             await onSave(index, text)
             setEditing(false)
+            onEditSaved()
             toast('Correction saved.')
         } catch (err) {
             toast(errorMessage(err), 'error')

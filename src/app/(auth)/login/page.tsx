@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Lock, Mail } from 'lucide-react'
 import React, { useEffect, useState } from 'react'
 import AuthShell from '@/app/(auth)/AuthShell'
+import ResendVerification from '@/app/(auth)/ResendVerification'
 import Alert from '@/components/ui/Alert'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -32,6 +33,7 @@ export default function LoginPage() {
             }
         }
         if (params.get('passwordSet')) setStatus('Your password has been set. You can now log in.')
+        if (params.get('verified')) setStatus('Your email is confirmed. Log in to start your 14-day free trial.')
     }, [])
 
     const submit = async (e: React.FormEvent) => {
@@ -48,15 +50,16 @@ export default function LoginPage() {
 
     if (user) return <FullPageLoader />
 
-    // LoginRequest returns "deleted" / "inactive" as sentinel messages (same as winv-api).
+    // LoginRequest returns "deleted" / "inactive" / "unverified" as sentinel messages (same idea as winv-api).
     const emailError = errors.email?.[0]
     const deleted = emailError === 'deleted'
     const inactive = emailError === 'inactive'
+    const unverified = emailError === 'unverified'
 
     return (
         <AuthShell
             title="Welcome back"
-            subtitle="Log in to continue to Traduksyon.io"
+            subtitle="Log in to continue to Traduksyon.com"
             footer={
                 <>
                     New to Traduksyon?{' '}
@@ -69,6 +72,9 @@ export default function LoginPage() {
                 {status && <Alert tone="success">{status}</Alert>}
                 {deleted && <Alert tone="error">This account has been deleted. Contact your administrator if you think this is a mistake.</Alert>}
                 {inactive && <Alert tone="error">This account has been deactivated. Contact your administrator.</Alert>}
+                {unverified && (
+                    <Alert tone="warning">Please confirm your email first. We sent a link to {email} when you signed up.</Alert>
+                )}
 
                 <Input
                     id="email"
@@ -80,7 +86,7 @@ export default function LoginPage() {
                     placeholder="you@company.com"
                     value={email}
                     onChange={e => setEmail(e.target.value)}
-                    error={deleted || inactive ? undefined : errors.email}
+                    error={deleted || inactive || unverified ? undefined : errors.email}
                     required
                     autoFocus
                 />
@@ -116,6 +122,11 @@ export default function LoginPage() {
                     Log in
                 </Button>
             </form>
+            {unverified && (
+                <div className="mt-4">
+                    <ResendVerification key={email} email={email} />
+                </div>
+            )}
         </AuthShell>
     )
 }

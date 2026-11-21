@@ -8,7 +8,8 @@ import type { AuthUser, FieldErrors } from '@/types'
 
 /**
  * Ported from winv-web/src/hooks/auth.tsx (Laravel Breeze + Sanctum SPA cookie auth).
- * Differences: self-registration starts the 14-day trial, and the returnUrl is read from
+ * Differences: self-registration emails a confirmation link and does NOT sign the user in
+ * (login returns the "unverified" sentinel until they confirm), and the returnUrl is read from
  * window.location so pages don't need a <Suspense> boundary for useSearchParams().
  */
 
@@ -44,16 +45,35 @@ export const useAuth = ({ middleware, redirectIfAuthenticated }: UseAuthOptions 
         shouldRetryOnError: false,
     })
 
-    const register = async ({ setErrors, ...props }: { setErrors: SetErrors } & Record<string, any>) => {
+    /** Resolves to the email the confirmation link was sent to, or null on validation errors. */
+    const register = async ({ setErrors, ...props }: { setErrors: SetErrors } & Record<string, any>): Promise<string | null> => {
         await csrf()
         setErrors({})
         return axios
-            .post('/register', props)
-            .then(() => mutate())
+            .post<{ status: string; email: string }>('/register', props)
+            .then(res => res.data.email)
             .catch((err: AxiosError<{ errors: FieldErrors }>) => {
                 if (err.response?.status !== 422) throw err
                 setErrors(err.response.data.errors)
+                return null
             })
+    }
+
+    /** Always resolves with the API's generic status (it never reveals whether the email exists). */
+    const resendVerification = async (email: string): Promise<string> => {
+        await csrf()
+        const res = await axios.post<{ status: string }>('/email/verification-notification', { email })
+        return res.data.status
+    }
+
+    /** `path` = "/{id}/{hash}?expires=…&signature=…" copied from the emailed SPA link. */
+    const verifyEmail = async (path: string): Promise<'verified' | 'already-verified' | 'invalid'> => {
+        try {
+            const res = await axios.get<{ status: 'verified' | 'already-verified' }>('/email/verify' + path)
+            return res.data.status
+        } catch {
+            return 'invalid'
+        }
     }
 
     const login = async ({
@@ -151,6 +171,8 @@ export const useAuth = ({ middleware, redirectIfAuthenticated }: UseAuthOptions 
         isLoading,
         mutate,
         register,
+        resendVerification,
+        verifyEmail,
         login,
         forgotPassword,
         validateResetToken,

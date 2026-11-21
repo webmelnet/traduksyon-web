@@ -7,7 +7,7 @@ export function LogoMark({ size = 40, className = '' }: { size?: number; classNa
     return (
         <Image
             src="/images/logo-mark.png"
-            alt="Traduksyon.io"
+            alt="Traduksyon.com"
             width={size}
             height={Math.round(size * 0.865)}
             className={className}

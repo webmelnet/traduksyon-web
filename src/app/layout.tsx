@@ -7,9 +7,9 @@ import ServiceWorkerRegister from '@/components/ServiceWorkerRegister'
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' })
 
 export const metadata: Metadata = {
-    title: { default: 'Traduksyon.io', template: '%s · Traduksyon.io' },
+    title: { default: 'Traduksyon.com', template: '%s · Traduksyon.com' },
     description: 'Meet. Transcribe. Translate. Understand.',
-    applicationName: 'Traduksyon.io',
+    applicationName: 'Traduksyon.com',
     manifest: '/manifest.json',
     icons: {
         icon: [

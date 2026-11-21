@@ -1,9 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { CheckCircle2, Lock, Mail, User } from 'lucide-react'
+import { CheckCircle2, Lock, Mail, MailCheck, User } from 'lucide-react'
 import React, { useState } from 'react'
 import AuthShell from '@/app/(auth)/AuthShell'
+import ResendVerification from '@/app/(auth)/ResendVerification'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import { FullPageLoader } from '@/components/ui/Spinner'
@@ -16,6 +17,8 @@ export default function RegisterPage() {
     const [form, setForm] = useState({ name: '', email: '', password: '', password_confirmation: '' })
     const [errors, setErrors] = useState<FieldErrors>({})
     const [loading, setLoading] = useState(false)
+    // Set once the account exists: show "check your inbox" instead of the form.
+    const [sentTo, setSentTo] = useState<string | null>(null)
 
     const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, [key]: e.target.value }))
 
@@ -23,7 +26,8 @@ export default function RegisterPage() {
         e.preventDefault()
         setLoading(true)
         try {
-            await register({ ...form, setErrors })
+            const email = await register({ ...form, setErrors })
+            if (email) setSentTo(email)
         } catch {
             setErrors({ email: ['Unable to reach the server. Please try again.'] })
         } finally {
@@ -32,6 +36,35 @@ export default function RegisterPage() {
     }
 
     if (user) return <FullPageLoader />
+
+    if (sentTo) {
+        return (
+            <AuthShell
+                title="Check your inbox"
+                subtitle="One more step before your free trial starts."
+                footer={
+                    <>
+                        Already confirmed?{' '}
+                        <Link href="/login" className="font-semibold text-primary hover:text-primary-hover">
+                            Log in
+                        </Link>
+                    </>
+                }>
+                <div className="space-y-5">
+                    <div className="flex flex-col items-center gap-3 rounded-2xl bg-primary-mint/40 px-4 py-6 text-center">
+                        <div className="rounded-full bg-white p-3 text-primary shadow-sm">
+                            <MailCheck className="h-7 w-7" />
+                        </div>
+                        <p className="text-sm text-body">
+                            We sent a confirmation link to <strong className="break-all text-dark">{sentTo}</strong>. Click it to activate your account, then log in.
+                        </p>
+                    </div>
+                    <p className="text-center text-xs text-muted">Didn&apos;t get it? Check your spam folder, or send it again.</p>
+                    <ResendVerification email={sentTo} />
+                </div>
+            </AuthShell>
+        )
+    }
 
     return (
         <AuthShell

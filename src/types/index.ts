@@ -134,3 +134,91 @@ export interface TranscriptionOptions {
     max_upload_mb: number
     extensions: string[]
 }
+
+// ── Minutes of meeting ─────────────────────────────────────
+export type MinutesStatus = 'waiting' | 'queued' | 'processing' | 'completed' | 'failed'
+
+export interface MinutesContent {
+    title: string
+    meeting_date: string | null
+    attendees: { name: string; role: string | null }[]
+    summary: string
+    agenda: { topic: string; discussion: string[] }[]
+    decisions: string[]
+    action_items: { task: string; owner: string | null; due: string | null }[]
+    next_meeting: string | null
+    notes: string | null
+}
+
+export interface MeetingMinutes {
+    id: number
+    transcription_id: number
+    title: string
+    output_language: string
+    instructions?: string | null
+    status: MinutesStatus
+    provider?: string
+    model?: string | null
+    content?: MinutesContent | null
+    error: string | null
+    created_at: string
+    completed_at: string | null
+    transcription?: Pick<Transcription, 'id' | 'title'> & Partial<Pick<Transcription, 'status' | 'duration_secs' | 'language' | 'created_at'>>
+}
+
+export interface MinutesOptions {
+    output_languages: { code: string; label: string }[]
+    driver: 'fake' | 'anthropic'
+    transcriptions: Pick<Transcription, 'id' | 'title' | 'status' | 'duration_secs' | 'language' | 'created_at'>[]
+}
+
+// ── Committee reports ("Summarize") ────────────────────────
+export type ReportSource = 'minutes' | 'transcript'
+
+export interface ReportPerson {
+    name: string
+    role: string | null
+}
+
+export interface ReportContent {
+    title: string
+    committee: string | null
+    report_no: string | null
+    report_date: string | null
+    addressed_to: string | null
+    subject: string
+    introduction: string
+    proceedings: string
+    members_present: ReportPerson[]
+    others_present: ReportPerson[]
+    findings: { topic: string; points: string[] }[]
+    recommendations: string[]
+    conclusion: string
+    notes: string | null
+}
+
+export interface CommitteeReport {
+    id: number
+    source: ReportSource
+    meeting_minute_id: number | null
+    transcription_id: number | null
+    title: string
+    output_language: string
+    instructions?: string | null
+    status: MinutesStatus
+    provider?: string
+    model?: string | null
+    content?: ReportContent | null
+    error: string | null
+    created_at: string
+    completed_at: string | null
+    minutes?: Pick<MeetingMinutes, 'id' | 'title' | 'status' | 'transcription_id'> | null
+    transcription?: Pick<Transcription, 'id' | 'title' | 'status'> & Partial<Pick<Transcription, 'duration_secs'>> | null
+}
+
+export interface ReportOptions {
+    output_languages: { code: string; label: string }[]
+    driver: 'fake' | 'anthropic'
+    minutes: Pick<MeetingMinutes, 'id' | 'title' | 'status' | 'output_language' | 'created_at'>[]
+    transcriptions: Pick<Transcription, 'id' | 'title' | 'status' | 'duration_secs' | 'language' | 'created_at'>[]
+}

@@ -27,7 +27,7 @@ export default function AuthShell({ title, subtitle, children, footer }: AuthShe
                     <div className="rounded-2xl bg-white p-2 shadow-lg">
                         <LogoMark size={40} />
                     </div>
-                    <span className="text-xl font-extrabold tracking-tight">Traduksyon.io</span>
+                    <span className="text-xl font-extrabold tracking-tight">Traduksyon.com</span>
                 </div>
                 <div className="relative">
                     <h2 className="text-4xl font-extrabold leading-tight text-white">{TAGLINE}</h2>
@@ -48,7 +48,7 @@ export default function AuthShell({ title, subtitle, children, footer }: AuthShe
                         ))}
                     </ul>
                 </div>
-                <p className="relative text-xs text-white/60">© {new Date().getFullYear()} Traduksyon.io</p>
+                <p className="relative text-xs text-white/60">© {new Date().getFullYear()} Traduksyon.com</p>
             </aside>
 
             <main className="flex flex-1 flex-col">
@@ -65,7 +65,7 @@ export default function AuthShell({ title, subtitle, children, footer }: AuthShe
                         {footer && <div className="mt-6 text-center text-sm text-muted">{footer}</div>}
                     </div>
                 </div>
-                <p className="pb-safe py-4 text-center text-xs text-muted lg:hidden">© {new Date().getFullYear()} Traduksyon.io</p>
+                <p className="pb-safe py-4 text-center text-xs text-muted lg:hidden">© {new Date().getFullYear()} Traduksyon.com</p>
             </main>
         </div>
     )

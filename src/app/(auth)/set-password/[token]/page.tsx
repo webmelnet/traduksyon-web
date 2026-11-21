@@ -51,7 +51,7 @@ export default function SetPasswordPage() {
     }
 
     return (
-        <AuthShell title="Welcome to Traduksyon.io" subtitle="Set a password to activate your account.">
+        <AuthShell title="Welcome to Traduksyon.com" subtitle="Set a password to activate your account.">
             {state === 'checking' && (
                 <div className="flex justify-center py-6">
                     <Spinner />

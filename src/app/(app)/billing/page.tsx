@@ -63,7 +63,7 @@ export default function BillingPage() {
             {expired && !sub.access && (
                 <Alert tone="warning">
                     {sub.trial_ends_at && !sub.ends_at
-                        ? 'Your 14-day free trial has ended. Choose a plan below to keep using Traduksyon.io.'
+                        ? 'Your 14-day free trial has ended. Choose a plan below to keep using Traduksyon.com.'
                         : 'Your subscription has expired. Renew below to continue.'}
                 </Alert>
             )}

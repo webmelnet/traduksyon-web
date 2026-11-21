@@ -2,14 +2,15 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ChevronRight, FileText, Languages, Mic, Sparkles, Upload } from 'lucide-react'
+import { ChevronRight, ClipboardList, FileText, Languages, Mic, Sparkles, Upload } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import { useAuth } from '@/hooks/auth'
 
 const workflow = [
     { title: 'Transcribe', text: 'Speech to text with speaker labels', Icon: FileText, tone: 'bg-primary-mint text-primary-deep', href: '/meetings' },
+    { title: 'Minutes of meeting', text: 'Create minutes from a transcript or recording', Icon: ClipboardList, tone: 'bg-ai-soft text-ai', href: '/minutes' },
+    { title: 'Summarize', text: 'Committee report from minutes or a transcript', Icon: Sparkles, tone: 'bg-ai-soft text-ai', href: '/reports' },
     { title: 'Translate', text: 'Convert to your preferred language', Icon: Languages, tone: 'bg-primary-mint text-primary-deep', href: '/translate' },
-    { title: 'Summarize', text: 'Get key points and action items', Icon: Sparkles, tone: 'bg-ai-soft text-ai', href: '/meetings' },
 ]
 
 export default function HomePage() {

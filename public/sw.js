@@ -1,4 +1,4 @@
-/* Traduksyon.io service worker — hand-written, no build plugin.
+/* Traduksyon.com service worker — hand-written, no build plugin.
  * - Static assets (/_next/static, /icons, /images): cache-first (they are content-hashed or rarely change).
  * - Page navigations: network-first, falling back to the cached page, then /offline.
  * - API calls go to the Laravel origin and are never touched (auth/session data must not be cached).

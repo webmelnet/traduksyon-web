@@ -57,7 +57,7 @@ async function buildDocx({ transcription: t, segments, speakers, withTimes }: Ex
 
     const doc = new Document({
         title: t.title,
-        creator: 'Traduksyon.io',
+        creator: 'Traduksyon.com',
         styles: { default: { document: { run: { font: 'Calibri', size: 22, color: '334155' } } } },
         sections: [
             {
@@ -136,7 +136,7 @@ async function buildPdf({ transcription: t, segments, speakers, withTimes }: Exp
     pdf.setFont('helvetica', 'normal').setFontSize(8).setTextColor('#94A3B8')
     for (let i = 1; i <= pages; i++) {
         pdf.setPage(i)
-        pdf.text('Traduksyon.io', margin, pageH - 28)
+        pdf.text('Traduksyon.com', margin, pageH - 28)
         pdf.text(`${i} / ${pages}`, pageW - margin, pageH - 28, { align: 'right' })
     }
     return pdf.output('blob')
