@@ -1,12 +1,14 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect } from 'react'
 import BottomNav from '@/components/layout/BottomNav'
 import Header from '@/components/layout/Header'
 import Sidebar from '@/components/layout/Sidebar'
 import CreditBanner from '@/components/layout/CreditBanner'
 import { FullPageLoader } from '@/components/ui/Spinner'
-import { useAuth } from '@/hooks/auth'
+import { JUST_LOGGED_IN, useAuth } from '@/hooks/auth'
+import { useToast } from '@/contexts/ToastContext'
+import { formatCredits } from '@/utils/credits'
 
 /**
  * Customer workspace shell. Admin pages have their own shell in (admin).
@@ -15,6 +17,25 @@ import { useAuth } from '@/hooks/auth'
  */
 export default function AppLayout({ children }: { children: React.ReactNode }) {
     const { user, logout } = useAuth({ middleware: 'auth' })
+    const { toast } = useToast()
+
+    // Right after signing in, say how many credits are left (once per login; staff are never charged).
+    useEffect(() => {
+        if (!user) return
+        let fresh = false
+        try {
+            fresh = sessionStorage.getItem(JUST_LOGGED_IN) === '1'
+            sessionStorage.removeItem(JUST_LOGGED_IN)
+        } catch {
+            return
+        }
+        if (!fresh || user.credits.exempt) return
+        const left = user.credits.balance
+        toast(
+            left > 0 ? `Welcome back, ${user.name.split(' ')[0]}! You have ${formatCredits(left)} left.` : 'Welcome back! You’re out of credits — buy a pack to start new work.',
+            left > 0 && !user.credits.low ? 'success' : 'info',
+        )
+    }, [user, toast])
 
     if (!user) return <FullPageLoader />
 

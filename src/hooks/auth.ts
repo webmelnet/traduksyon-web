@@ -30,6 +30,9 @@ function readReturnUrl(): string | null {
     return decoded.startsWith('/') && !decoded.startsWith('//') ? decoded : null
 }
 
+/** sessionStorage flag set by login(), consumed by (app)/layout.tsx. */
+export const JUST_LOGGED_IN = 'traduksyon:just-logged-in'
+
 export const useAuth = ({ middleware, redirectIfAuthenticated }: UseAuthOptions = {}) => {
     const router = useRouter()
 
@@ -86,7 +89,15 @@ export const useAuth = ({ middleware, redirectIfAuthenticated }: UseAuthOptions 
         setStatus(null)
         return axios
             .post('/login', props)
-            .then(() => mutate())
+            .then(() => {
+                // Read once by the workspace layout to show "you have N credits left" after sign-in.
+                try {
+                    sessionStorage.setItem(JUST_LOGGED_IN, '1')
+                } catch {
+                    /* private mode / storage blocked: skip the greeting */
+                }
+                return mutate()
+            })
             .catch((err: AxiosError<{ errors: FieldErrors }>) => {
                 if (err.response?.status !== 422) throw err
                 setErrors(err.response.data.errors)

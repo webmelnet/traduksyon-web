@@ -25,7 +25,7 @@ Tokens in `tailwind.config.ts`: `primary` #0D9488 (CTA/active), `primary-hover`/
 
 ## Credits (prepaid) — replaced trial + subscription on 2026-11-23
 - `user.credits` from `/api/user` = `{balance, exempt, low, costs:{transcription_per_minute, minutes, report}}` (`CreditState`). Staff (`exempt`) are never charged and see no balance UI.
-- Header shows a balance chip linking to `/billing`. `components/layout/CreditBanner.tsx` replaced `TrialBanner` (shows when `low` or ≤ 0).
+- Header shows a balance chip linking to `/billing`. **Home** has a "Credits left" card (balance, about how many 1-hour meetings it covers, Top up / Buy when low). **Right after login**, `login()` sets sessionStorage `traduksyon:just-logged-in` (`JUST_LOGGED_IN`) and `(app)/layout.tsx` shows one toast "Welcome back, X! You have N credits left." (none for staff). `components/layout/CreditBanner.tsx` replaced `TrialBanner` (shows when `low` or ≤ 0).
 - `components/CreditCostNote.tsx` = "This will use N credits · you have M" (amber + **Buy credits** → `/billing?topup=1` when short). Used in UploadModal, CreateMinutesModal (recording = audio + minutes), CreateReportModal and both Regenerate modals.
 - `utils/credits.ts`: `transcriptionCost()` mirrors the API rule (per started minute); `readMediaDuration()` reads a picked file's length in the browser for the estimate (null if it can't; the server re-probes anyway); `formatCredits()`.
 - After anything that charges (create, retry, regenerate), call `mutate('/api/user')` so the header balance updates.

@@ -2,9 +2,11 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ChevronRight, ClipboardList, FileText, Languages, Mic, Sparkles, Upload } from 'lucide-react'
+import { ChevronRight, ClipboardList, Coins, FileText, Languages, Mic, Sparkles, Upload } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import { useAuth } from '@/hooks/auth'
+import type { CreditState } from '@/types'
+import { formatCredits } from '@/utils/credits'
 
 const workflow = [
     { title: 'Transcribe', text: 'Speech to text with speaker labels', Icon: FileText, tone: 'bg-primary-mint text-primary-deep', href: '/meetings' },
@@ -20,9 +22,12 @@ export default function HomePage() {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold sm:text-3xl">Hello{firstName ? `, ${firstName}` : ''}! 👋</h1>
-                <p className="mt-1 text-muted">What would you like to do today?</p>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold sm:text-3xl">Hello{firstName ? `, ${firstName}` : ''}! 👋</h1>
+                    <p className="mt-1 text-muted">What would you like to do today?</p>
+                </div>
+                {user && !user.credits.exempt && <CreditsCard credits={user.credits} />}
             </div>
 
             <div className="grid gap-6 lg:grid-cols-5">
@@ -66,5 +71,37 @@ export default function HomePage() {
                 </section>
             </div>
         </div>
+    )
+}
+
+/** Balance at a glance: credits left, what that covers, and a way to top up. */
+function CreditsCard({ credits }: { credits: CreditState }) {
+    const c = credits.costs
+    const perMeeting = 60 * c.transcription_per_minute + c.minutes + c.report
+    const meetings = Math.floor(Math.max(0, credits.balance) / perMeeting)
+    const minutes = Math.floor(Math.max(0, credits.balance) / c.transcription_per_minute)
+    const warn = credits.balance <= 0 || credits.low
+    const covers =
+        credits.balance <= 0
+            ? 'Buy credits to start new work.'
+            : meetings >= 1
+              ? `About ${meetings} one-hour meeting${meetings === 1 ? '' : 's'} with minutes and a report`
+              : `About ${minutes} minute${minutes === 1 ? '' : 's'} of transcription`
+    return (
+        <Link
+            href="/billing"
+            className={`flex items-center gap-4 rounded-2xl border p-4 shadow-card transition sm:min-w-[300px] ${warn ? 'border-amber-200 bg-amber-50 hover:border-amber-300' : 'border-line bg-surface hover:border-primary/40'}`}>
+            <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${warn ? 'bg-amber-100 text-amber-700' : 'bg-primary-mint text-primary-deep'}`}>
+                <Coins className="h-6 w-6" />
+            </span>
+            <span className="min-w-0 flex-1">
+                <span className="block text-xs font-medium uppercase tracking-wide text-muted">Credits left</span>
+                <span className="block text-2xl font-extrabold text-dark">{formatCredits(credits.balance)}</span>
+                <span className={`block text-xs ${warn ? 'text-amber-800' : 'text-muted'}`}>{covers}</span>
+            </span>
+            <span className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-semibold ${warn ? 'bg-amber-600 text-white' : 'bg-primary-mint text-primary-deep'}`}>
+                {warn ? 'Buy' : 'Top up'}
+            </span>
+        </Link>
     )
 }
