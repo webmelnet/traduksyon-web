@@ -1,10 +1,10 @@
 'use client'
 
 import useSWR from 'swr'
-import { AlertTriangle, ArrowLeft, Check, ChevronDown, ClipboardList, Copy, Pencil, RotateCcw, Trash2, UserPlus, Users, X } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, ArrowUpToLine, Check, ChevronDown, ClipboardList, Copy, Pencil, RotateCcw, Scissors, Trash2, UserPlus, Users, X } from 'lucide-react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { type ExportFormat, exportTranscript } from '@/components/transcribe/exportTranscript'
 import { formatTimestamp, languageLabel, MODE_LABELS, speakerName, speakerTone, STATUS_META, transcriptToText } from '@/components/transcribe/helpers'
 import Alert from '@/components/ui/Alert'
@@ -78,6 +78,24 @@ export default function TranscriptionPage() {
     const saveSegment = useCallback(
         async (index: number, patch: SegmentPatch) => {
             const res = await axios.put(`/api/transcriptions/${id}`, { segments: [{ index, ...patch }] })
+            await mutate(res.data.transcription, { revalidate: false })
+        },
+        [id, mutate],
+    )
+
+    /** Splits line `index` before word `at`; the second part goes to `speaker` (a new id adds that speaker). */
+    const splitSegment = useCallback(
+        async (index: number, at: number, speaker: string) => {
+            const res = await axios.put(`/api/transcriptions/${id}`, { split: { index, at, speaker } })
+            await mutate(res.data.transcription, { revalidate: false })
+        },
+        [id, mutate],
+    )
+
+    /** Joins line `index` onto the line above it (undo for a split). */
+    const mergeSegment = useCallback(
+        async (index: number) => {
+            const res = await axios.put(`/api/transcriptions/${id}`, { merge: { index } })
             await mutate(res.data.transcription, { revalidate: false })
         },
         [id, mutate],
@@ -249,7 +267,8 @@ export default function TranscriptionPage() {
                                 <ol className="divide-y divide-line">
                                     {segments.map((s, i) => (
                                         <SegmentRow
-                                            key={i}
+                                            // Split/merge shift later indexes, so let those rows remount with fresh state.
+                                            key={`${i}:${s.start}:${s.end}`}
                                             index={i}
                                             segment={s}
                                             speakers={speakers}
@@ -257,6 +276,8 @@ export default function TranscriptionPage() {
                                             activeTime={i === activeIndex ? time : null}
                                             onSeek={seek}
                                             onSave={saveSegment}
+                                            onSplit={splitSegment}
+                                            onMerge={mergeSegment}
                                             onEditStart={pauseForEdit}
                                             onEditSaved={resumeAfterEdit}
                                         />
@@ -293,7 +314,7 @@ export default function TranscriptionPage() {
                                 </ul>
                                 <p className="mt-3 text-xs text-muted">
                                     Speakers are detected automatically. Tap a word or time to jump there in the audio. Spot a wrong word? Tap the pencil on that line to fix it. Wrong person? Tap the name on that line to
-                                    change who said it.
+                                    change who said it. Two people in one line? Tap the scissors and pick the word where the other person starts.
                                 </p>
                             </Card>
                         </div>
@@ -354,7 +375,21 @@ function nextSpeakerId(speakers: TranscriptSpeaker[]): string {
 }
 
 /** Speaker chip on a line; opens a menu to reassign just this line to another (or a new) speaker. */
-function SpeakerPicker({ speakers, current, disabled, onPick }: { speakers: TranscriptSpeaker[]; current: string; disabled?: boolean; onPick: (id: string) => Promise<void> }) {
+function SpeakerPicker({
+    speakers,
+    current,
+    disabled,
+    label = 'Who said this line?',
+    title = 'Change who said this line',
+    onPick,
+}: {
+    speakers: TranscriptSpeaker[]
+    current: string
+    disabled?: boolean
+    label?: string
+    title?: string
+    onPick: (id: string) => Promise<void> | void
+}) {
     const [open, setOpen] = useState(false)
     const [working, setWorking] = useState(false)
     const ref = useRef<HTMLDivElement>(null)
@@ -383,6 +418,27 @@ function SpeakerPicker({ speakers, current, disabled, onPick }: { speakers: Tran
         }
     }
 
+    // Fit the menu between the chip and the window edge (minus the sticky header / phone BottomNav);
+    // flip it upward when there is much more room above. The speaker list scrolls inside.
+    const [placement, setPlacement] = useState<{ up: boolean; maxHeight: number }>({ up: false, maxHeight: 360 })
+    useLayoutEffect(() => {
+        if (!open) return
+        const measure = () => {
+            const rect = ref.current?.getBoundingClientRect()
+            if (!rect) return
+            const gap = 12
+            const bottomNav = window.innerWidth < 768 ? 72 : 0
+            const header = 64
+            const below = window.innerHeight - rect.bottom - bottomNav - gap
+            const above = rect.top - header - gap
+            const up = below < 240 && above > below
+            setPlacement({ up, maxHeight: Math.max(160, up ? above : below) })
+        }
+        measure()
+        window.addEventListener('resize', measure)
+        return () => window.removeEventListener('resize', measure)
+    }, [open])
+
     const newId = nextSpeakerId(speakers)
 
     return (
@@ -393,15 +449,19 @@ function SpeakerPicker({ speakers, current, disabled, onPick }: { speakers: Tran
                 onClick={() => setOpen(o => !o)}
                 aria-haspopup="menu"
                 aria-expanded={open}
-                title="Change who said this line"
+                title={title}
                 className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold transition hover:ring-2 hover:ring-primary/30 disabled:opacity-60 ${speakerTone(speakers, current)}`}>
                 {working ? <Spinner className="h-3 w-3" /> : null}
                 {speakerName(speakers, current)}
                 <ChevronDown className="h-3 w-3 opacity-60" />
             </button>
             {open && (
-                <div role="menu" className="absolute left-0 z-10 mt-1.5 w-56 overflow-hidden rounded-xl border border-line bg-white py-1 shadow-lg">
-                    <div className="px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted">Who said this line?</div>
+                <div
+                    role="menu"
+                    style={{ maxHeight: placement.maxHeight }}
+                    className={`absolute left-0 z-[25] flex w-56 flex-col overflow-hidden rounded-xl border border-line bg-white py-1 shadow-lg ${placement.up ? 'bottom-full mb-1.5' : 'top-full mt-1.5'}`}>
+                    <div className="shrink-0 px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted">{label}</div>
+                    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
                     {speakers.map(sp => (
                         <button
                             key={sp.id}
@@ -414,11 +474,12 @@ function SpeakerPicker({ speakers, current, disabled, onPick }: { speakers: Tran
                             {sp.id === current && <Check className="h-4 w-4 shrink-0 text-primary" />}
                         </button>
                     ))}
+                    </div>
                     <button
                         role="menuitem"
                         disabled={working}
                         onClick={() => pick(newId)}
-                        className="flex w-full items-center gap-2 border-t border-line px-3 py-2 text-left text-sm font-medium text-primary hover:bg-canvas disabled:opacity-60">
+                        className="flex w-full shrink-0 items-center gap-2 border-t border-line px-3 py-2 text-left text-sm font-medium text-primary hover:bg-canvas disabled:opacity-60">
                         <UserPlus className="h-4 w-4 shrink-0" /> New speaker (Speaker {newId})
                     </button>
                 </div>
@@ -426,6 +487,8 @@ function SpeakerPicker({ speakers, current, disabled, onPick }: { speakers: Tran
         </div>
     )
 }
+
+const ROW_ACTION = 'rounded-lg p-1.5 text-muted transition hover:bg-primary-mint/50 hover:text-primary disabled:opacity-50'
 
 /** Only the row that is playing receives `activeTime`, so playback re-renders one row, not the whole transcript. */
 const SegmentRow = memo(function SegmentRow({
@@ -436,6 +499,8 @@ const SegmentRow = memo(function SegmentRow({
     activeTime,
     onSeek,
     onSave,
+    onSplit,
+    onMerge,
     onEditStart,
     onEditSaved,
 }: {
@@ -446,6 +511,8 @@ const SegmentRow = memo(function SegmentRow({
     activeTime: number | null
     onSeek: (secs: number) => void
     onSave: (index: number, patch: SegmentPatch) => Promise<void>
+    onSplit: (index: number, at: number, speaker: string) => Promise<void>
+    onMerge: (index: number) => Promise<void>
     onEditStart: () => void
     onEditSaved: () => void
 }) {
@@ -453,8 +520,53 @@ const SegmentRow = memo(function SegmentRow({
     const [editing, setEditing] = useState(false)
     const [draft, setDraft] = useState('')
     const [saving, setSaving] = useState(false)
+    // Split mode: tap the first word the other person said, pick who said the rest, save.
+    const [splitting, setSplitting] = useState(false)
+    const [splitAt, setSplitAt] = useState<number | null>(null)
+    const [splitSpeaker, setSplitSpeaker] = useState('')
     const active = activeTime !== null && !editing
     const original = segment.words.map(w => w.text).join(' ')
+    const canSplit = segment.words.length > 1
+    // A not-yet-saved new speaker gets its own colour in the preview.
+    const splitSpeakers = useMemo(
+        () => (splitting && splitSpeaker && !speakers.some(sp => sp.id === splitSpeaker) ? [...speakers, { id: splitSpeaker, name: `Speaker ${splitSpeaker}` }] : speakers),
+        [speakers, splitting, splitSpeaker],
+    )
+
+    const startSplit = () => {
+        setSplitAt(null)
+        setSplitSpeaker(speakers.find(sp => sp.id !== segment.speaker)?.id ?? nextSpeakerId(speakers))
+        setSplitting(true)
+        onEditStart()
+    }
+
+    const cancelSplit = () => setSplitting(false)
+
+    const saveSplit = async () => {
+        if (splitAt === null) return toast('Tap the word where the other person starts speaking.', 'error')
+        setSaving(true)
+        try {
+            await onSplit(index, splitAt, splitSpeaker)
+            setSplitting(false)
+            onEditSaved()
+            toast('Line split.')
+        } catch (err) {
+            toast(errorMessage(err), 'error')
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    const merge = async () => {
+        setSaving(true)
+        try {
+            await onMerge(index)
+            toast('Merged with the line above.')
+        } catch (err) {
+            toast(errorMessage(err), 'error')
+            setSaving(false)
+        }
+    }
 
     const changeSpeaker = async (speaker: string) => {
         try {
@@ -467,6 +579,7 @@ const SegmentRow = memo(function SegmentRow({
     }
 
     const startEdit = () => {
+        setSplitting(false)
         setDraft(original)
         setEditing(true)
         onEditStart()
@@ -493,23 +606,31 @@ const SegmentRow = memo(function SegmentRow({
     }
 
     return (
-        <li className={`group px-4 py-3.5 transition sm:px-5 ${active ? 'bg-primary-mint/25' : ''} ${editing ? 'bg-canvas' : ''}`}>
+        <li className={`group px-4 py-3.5 transition sm:px-5 ${active ? 'bg-primary-mint/25' : ''} ${editing || splitting ? 'bg-canvas' : ''}`}>
             <div className="mb-1.5 flex items-center gap-2">
-                <SpeakerPicker speakers={speakers} current={segment.speaker} disabled={saving} onPick={changeSpeaker} />
+                <SpeakerPicker speakers={speakers} current={segment.speaker} disabled={saving || splitting} onPick={changeSpeaker} />
                 {showTime && (
                     <button onClick={() => onSeek(segment.start)} className="font-mono text-xs text-muted hover:text-primary">
                         {formatTimestamp(segment.start)}
                     </button>
                 )}
                 {segment.edited && !editing && <span className="text-[11px] italic text-muted">edited</span>}
-                {!editing && (
-                    <button
-                        onClick={startEdit}
-                        aria-label="Edit this line"
-                        title="Correct this line"
-                        className="ml-auto rounded-lg p-1.5 text-muted transition hover:bg-primary-mint/50 hover:text-primary sm:opacity-0 sm:focus:opacity-100 sm:group-hover:opacity-100">
-                        <Pencil className="h-3.5 w-3.5" />
-                    </button>
+                {!editing && !splitting && (
+                    <div className="ml-auto flex items-center gap-0.5 sm:opacity-0 sm:focus-within:opacity-100 sm:group-hover:opacity-100">
+                        {index > 0 && (
+                            <button onClick={merge} disabled={saving} aria-label="Merge with the line above" title="Merge with the line above" className={ROW_ACTION}>
+                                {saving ? <Spinner className="h-3.5 w-3.5" /> : <ArrowUpToLine className="h-3.5 w-3.5" />}
+                            </button>
+                        )}
+                        {canSplit && (
+                            <button onClick={startSplit} disabled={saving} aria-label="Split this line" title="Split this line (two people speaking)" className={ROW_ACTION}>
+                                <Scissors className="h-3.5 w-3.5" />
+                            </button>
+                        )}
+                        <button onClick={startEdit} disabled={saving} aria-label="Edit this line" title="Correct this line" className={ROW_ACTION}>
+                            <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                    </div>
                 )}
             </div>
             {editing ? (
@@ -537,6 +658,55 @@ const SegmentRow = memo(function SegmentRow({
                             Play this part
                         </Button>
                         <span className="hidden text-xs text-muted sm:inline">Ctrl+Enter to save · Esc to cancel</span>
+                    </div>
+                </div>
+            ) : splitting ? (
+                <div>
+                    <p className="mb-2 text-xs font-medium text-muted">
+                        {splitAt === null ? 'Tap the first word the other person said.' : 'Pick who said the second part, then save. Tap another word to move the split.'}
+                    </p>
+                    <p className="rounded-xl border border-dashed border-primary/40 bg-white px-3 py-2 text-[15px] leading-loose text-body">
+                        {segment.words.map((w, i) => {
+                            const second = splitAt !== null && i >= splitAt
+                            const current = activeTime !== null && activeTime >= w.start && activeTime < Math.max(w.end, w.start + 0.15)
+                            return (
+                                <React.Fragment key={i}>
+                                    {i > 0 && (i === splitAt ? <span className="mx-1 inline-block h-5 w-0.5 translate-y-1 rounded bg-primary" aria-hidden /> : ' ')}
+                                    <button
+                                        type="button"
+                                        disabled={i === 0 || saving}
+                                        onClick={() => setSplitAt(i)}
+                                        title={i === 0 ? undefined : 'Split here'}
+                                        className={`rounded px-0.5 transition enabled:hover:ring-2 enabled:hover:ring-primary/40 ${w.type === 'audio_event' ? 'italic' : ''} ${
+                                            second ? speakerTone(splitSpeakers, splitSpeaker) : ''
+                                        } ${current ? 'underline decoration-primary decoration-2 underline-offset-4' : ''}`}>
+                                        {w.text}
+                                    </button>
+                                </React.Fragment>
+                            )
+                        })}
+                    </p>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <span className="text-xs text-muted">Second part said by</span>
+                        <SpeakerPicker
+                            speakers={splitSpeakers}
+                            current={splitSpeaker}
+                            disabled={saving}
+                            label="Who said the second part?"
+                            title="Who said the second part"
+                            onPick={id => setSplitSpeaker(id)}
+                        />
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <Button size="sm" loading={saving} disabled={splitAt === null} icon={<Scissors className="h-4 w-4" />} onClick={saveSplit}>
+                            Split line
+                        </Button>
+                        <Button size="sm" variant="secondary" disabled={saving} icon={<X className="h-4 w-4" />} onClick={cancelSplit}>
+                            Cancel
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => onSeek(splitAt !== null ? Math.max(segment.words[splitAt].start - 1, segment.start) : segment.start)}>
+                            {splitAt !== null ? 'Play around the split' : 'Play this part'}
+                        </Button>
                     </div>
                 </div>
             ) : (
