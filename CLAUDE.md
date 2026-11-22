@@ -30,6 +30,7 @@ Tokens in `tailwind.config.ts`: `primary` #0D9488 (CTA/active), `primary-hover`/
 - `utils/credits.ts`: `transcriptionCost()` mirrors the API rule (per started minute); `readMediaDuration()` reads a picked file's length in the browser for the estimate (null if it can't; the server re-probes anyway); `formatCredits()`.
 - After anything that charges (create, retry, regenerate), call `mutate('/api/user')` so the header balance updates.
 - Admin users page: credits badge + **Add / remove credits** (`AdjustCreditsModal` → `POST /api/users/{id}/credits`), replacing "Extend access".
+- The **Edit user** modal also has an optional "Credits to add" field (plus note). It only shows for non-staff users when the admin has `users.manage_subscription` (`canAddCredits` prop). Save sends `PUT /api/users/{id}` first, then the same credits endpoint, so the top-up gets its own credit-history entry. If only the top-up fails, the error appears under the field and says the details were already saved.
 
 ## Billing pages
 `/billing` = **Credits** page (balance, what things cost, credit packs, credit history ledger, payment history), `/billing/return?payment=` (polls the API until the payment leaves `pending`), `/billing/checkout/[id]` (simulated checkout, only reached when the API runs `PAYMENT_DRIVER=fake`). `/admin/payments` is the admin all-payments view. Money is in centavos; format with `formatMoney`. Dates use DD/MM/YYYY (`utils/format.ts`).

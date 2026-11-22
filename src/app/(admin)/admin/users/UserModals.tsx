@@ -7,16 +7,36 @@ import Input from '@/components/ui/Input'
 import Modal from '@/components/ui/Modal'
 import axios from '@/lib/axios'
 import type { FieldErrors, ManagedUser, Role } from '@/types'
+import { formatCredits } from '@/utils/credits'
 import { errorMessage } from '@/utils/format'
 
-export function UserFormModal({ open, user, roles, onClose, onSaved }: { open: boolean; user: ManagedUser | null; roles: Role[]; onClose: () => void; onSaved: (msg: string) => void }) {
+export function UserFormModal({
+    open,
+    user,
+    roles,
+    canAddCredits = false,
+    onClose,
+    onSaved,
+}: {
+    open: boolean
+    user: ManagedUser | null
+    roles: Role[]
+    canAddCredits?: boolean
+    onClose: () => void
+    onSaved: (msg: string) => void
+}) {
     const [form, setForm] = useState({ name: '', email: '', roles: ['User'] as string[], is_active: true })
+    const [addCredits, setAddCredits] = useState('')
+    const [creditNote, setCreditNote] = useState('')
+    const showCredits = !!user && canAddCredits && !user.credits.exempt
     const [errors, setErrors] = useState<FieldErrors>({})
     const [saving, setSaving] = useState(false)
 
     useEffect(() => {
         if (!open) return
         setErrors({})
+        setAddCredits('')
+        setCreditNote('')
         setForm(user ? { name: user.name, email: user.email, roles: user.roles_list, is_active: user.is_active } : { name: '', email: '', roles: ['User'], is_active: true })
     }, [open, user])
 
@@ -24,15 +44,29 @@ export function UserFormModal({ open, user, roles, onClose, onSaved }: { open: b
 
     const submit = async (e?: React.FormEvent) => {
         e?.preventDefault()
+        const credits = showCredits && addCredits.trim() !== '' ? Number(addCredits) : 0
+        if (credits && (!Number.isInteger(credits) || credits < 1 || credits > 100000)) {
+            setErrors({ credits: ['Enter a whole number from 1 to 100,000.'] })
+            return
+        }
         setSaving(true)
         setErrors({})
         try {
             if (user) await axios.put(`/api/users/${user.id}`, form)
             else await axios.post('/api/users', form)
-            onSaved(user ? 'User updated.' : 'User created and invitation sent.')
         } catch (err: any) {
             if (err.response?.status === 422) setErrors(err.response.data.errors)
             else setErrors({ general: [errorMessage(err)] })
+            setSaving(false)
+            return
+        }
+        try {
+            // Separate call so the top-up lands in the credit history with its own note.
+            if (user && credits) await axios.post(`/api/users/${user.id}/credits`, { amount: credits, note: creditNote.trim() || null })
+            onSaved(user ? (credits ? `User updated and ${formatCredits(credits)} added.` : 'User updated.') : 'User created and invitation sent.')
+        } catch (err: any) {
+            // The user details are already saved at this point; only the top-up failed.
+            setErrors({ credits: [`Details saved, but credits were not added: ${errorMessage(err)}`] })
         } finally {
             setSaving(false)
         }
@@ -78,6 +112,20 @@ export function UserFormModal({ open, user, roles, onClose, onSaved }: { open: b
                         </span>
                         <input type="checkbox" className="h-5 w-5 rounded text-primary focus:ring-primary" checked={form.is_active} onChange={e => setForm(f => ({ ...f, is_active: e.target.checked }))} />
                     </label>
+                )}
+                {showCredits && user && (
+                    <div className="space-y-3 rounded-xl border border-line px-4 py-3">
+                        <div className="text-sm">
+                            <span className="block font-medium text-dark">Add credits</span>
+                            <span className="block text-muted">
+                                Current balance: <strong className="text-dark">{formatCredits(user.credits.balance)}</strong>. Leave blank to keep it as is.
+                            </span>
+                        </div>
+                        <Input id="u-credits" type="number" min={1} max={100000} step={1} label="Credits to add" placeholder="e.g. 100" value={addCredits} onChange={e => setAddCredits(e.target.value)} error={errors.credits} />
+                        {addCredits.trim() !== '' && (
+                            <Input id="u-credit-note" label="Note (optional)" placeholder="e.g. Council demo, refund for a bad recording" maxLength={150} value={creditNote} onChange={e => setCreditNote(e.target.value)} />
+                        )}
+                    </div>
                 )}
             </form>
         </Modal>

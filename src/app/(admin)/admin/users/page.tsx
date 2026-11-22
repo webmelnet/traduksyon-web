@@ -228,6 +228,7 @@ export default function UsersPage() {
                 open={dialog?.kind === 'create' || dialog?.kind === 'edit'}
                 user={dialog?.kind === 'edit' ? dialog.user : null}
                 roles={roles ?? []}
+                canAddCredits={can('users.manage_subscription')}
                 onClose={() => setDialog(null)}
                 onSaved={msg => {
                     toast(msg)
