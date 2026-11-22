@@ -47,7 +47,7 @@ export default function PaymentsPage() {
         <div className="space-y-5">
             <div>
                 <h1 className="text-2xl font-bold">Payments</h1>
-                <p className="mt-1 text-muted">All subscription payments{data ? ` · ${formatMoney(data.totals.paid)} collected` : ''}.</p>
+                <p className="mt-1 text-muted">All credit pack payments{data ? ` · ${formatMoney(data.totals.paid)} collected` : ''}.</p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
                 <div className="relative flex-1">
@@ -87,7 +87,7 @@ export default function PaymentsPage() {
                                         </div>
                                     </div>
                                     <div className="mt-1 text-xs text-muted">
-                                        {formatDateTime(p.paid_at ?? p.created_at)} · {p.plan?.name} · {PAYMENT_METHOD_LABELS[p.payment_method ?? ''] ?? '—'}
+                                        {formatDateTime(p.paid_at ?? p.created_at)} · {p.plan?.name}{p.credits ? ` (${p.credits.toLocaleString('en-PH')} credits)` : ''} · {PAYMENT_METHOD_LABELS[p.payment_method ?? ''] ?? '—'}
                                     </div>
                                 </li>
                             ))}
@@ -98,7 +98,7 @@ export default function PaymentsPage() {
                                     <tr>
                                         <th className="px-5 py-3">Date</th>
                                         <th className="px-5 py-3">User</th>
-                                        <th className="px-5 py-3">Plan</th>
+                                        <th className="px-5 py-3">Pack</th>
                                         <th className="px-5 py-3">Method</th>
                                         <th className="px-5 py-3">Reference</th>
                                         <th className="px-5 py-3 text-right">Amount</th>
@@ -113,7 +113,10 @@ export default function PaymentsPage() {
                                                 <div className="font-medium text-dark">{p.user?.name}</div>
                                                 <div className="text-xs text-muted">{p.user?.email}</div>
                                             </td>
-                                            <td className="px-5 py-3">{p.plan?.name}</td>
+                                            <td className="px-5 py-3">
+                                                {p.plan?.name}
+                                                {p.credits ? <span className="block text-xs text-muted">{p.credits.toLocaleString('en-PH')} credits</span> : null}
+                                            </td>
                                             <td className="px-5 py-3">{PAYMENT_METHOD_LABELS[p.payment_method ?? ''] ?? '—'}</td>
                                             <td className="px-5 py-3 font-mono text-xs">{p.reference}</td>
                                             <td className="px-5 py-3 text-right font-semibold">{formatMoney(p.amount, p.currency)}</td>

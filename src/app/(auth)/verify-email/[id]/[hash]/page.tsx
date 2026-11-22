@@ -51,7 +51,7 @@ export default function VerifyEmailPage() {
                         <CheckCircle2 className="h-10 w-10 text-success" />
                         <p className="text-sm text-body">
                             {state === 'verified'
-                                ? 'Thanks! Your account is active and your 14-day free trial has started.'
+                                ? 'Thanks! Your account is active and your free credits are waiting for you.'
                                 : 'This email was already confirmed. You can log in.'}
                         </p>
                     </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import useSWR from 'swr'
+import useSWR, { mutate as revalidateKey } from 'swr'
 import { AlertTriangle, ArrowLeft, ArrowUpToLine, Check, ChevronDown, ClipboardList, Copy, Pencil, RotateCcw, Scissors, Trash2, UserPlus, Users, X } from 'lucide-react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
@@ -143,6 +143,7 @@ export default function TranscriptionPage() {
         try {
             await axios.post(`/api/transcriptions/${t.id}/retry`)
             await mutate()
+            revalidateKey('/api/user') // retrying charges credits again (the failed run was refunded)
         } catch (err) {
             toast(errorMessage(err), 'error')
         } finally {
@@ -210,6 +211,7 @@ export default function TranscriptionPage() {
                 <Alert tone="error">
                     <div className="font-semibold">Transcription failed</div>
                     <div className="mt-0.5 break-words">{t.error || 'Something went wrong.'}</div>
+                    <div className="mt-1 text-xs opacity-80">The credits for this recording were returned. Trying again uses them again.</div>
                     <Button size="sm" variant="secondary" className="mt-3" loading={busy} icon={<RotateCcw className="h-4 w-4" />} onClick={retry}>
                         Try again
                     </Button>

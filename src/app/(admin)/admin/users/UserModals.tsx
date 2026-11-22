@@ -128,16 +128,21 @@ export function ResetPasswordModal({ user, onClose, onSaved }: { user: ManagedUs
     )
 }
 
-export function ExtendTrialModal({ user, onClose, onSaved }: { user: ManagedUser; onClose: () => void; onSaved: () => void }) {
-    const [days, setDays] = useState('14')
+/** Admin top-up or correction. Recorded in the user's credit history with the note (or a default line). */
+export function AdjustCreditsModal({ user, onClose, onSaved }: { user: ManagedUser; onClose: () => void; onSaved: () => void }) {
+    const [mode, setMode] = useState<'add' | 'remove'>('add')
+    const [amount, setAmount] = useState('100')
+    const [note, setNote] = useState('')
     const [error, setError] = useState<string | null>(null)
     const [saving, setSaving] = useState(false)
 
     const submit = async () => {
+        const n = Math.abs(Math.trunc(Number(amount)))
+        if (!n) return setError('Enter a number of credits.')
         setSaving(true)
         setError(null)
         try {
-            await axios.post(`/api/users/${user.id}/extend-access`, { days: Number(days) })
+            await axios.post(`/api/users/${user.id}/credits`, { amount: mode === 'add' ? n : -n, note: note.trim() || null })
             onSaved()
         } catch (err) {
             setError(errorMessage(err))
@@ -146,26 +151,39 @@ export function ExtendTrialModal({ user, onClose, onSaved }: { user: ManagedUser
         }
     }
 
-    const target = user.subscription.status === 'active' ? 'paid subscription' : 'free trial'
     return (
         <Modal
             open
             onClose={onClose}
-            title={`Extend access · ${user.name}`}
+            title={`Credits · ${user.name}`}
             size="sm"
             footer={
                 <>
                     <Button variant="secondary" onClick={onClose}>
                         Cancel
                     </Button>
-                    <Button loading={saving} onClick={submit}>
-                        Extend
+                    <Button loading={saving} onClick={submit} variant={mode === 'remove' ? 'danger' : 'primary'}>
+                        {mode === 'add' ? 'Add credits' : 'Remove credits'}
                     </Button>
                 </>
             }>
             <div className="space-y-4">
-                <p className="text-sm text-muted">Adds days to this user&apos;s {target} at no charge. If it has already ended, the days count from today.</p>
-                <Input id="days" type="number" min={1} max={365} label="Days to add" value={days} onChange={e => setDays(e.target.value)} error={error ?? undefined} />
+                <p className="text-sm text-muted">
+                    Current balance: <strong className="text-dark">{new Intl.NumberFormat('en-PH').format(user.credits.balance)} credits</strong>. Changes are free and show in the user&apos;s credit history.
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                    {(['add', 'remove'] as const).map(m => (
+                        <button
+                            key={m}
+                            type="button"
+                            onClick={() => setMode(m)}
+                            className={`rounded-xl border px-3 py-2 text-sm font-medium ${mode === m ? 'border-primary bg-primary-mint/50 text-primary-deep' : 'border-line text-body hover:bg-canvas'}`}>
+                            {m === 'add' ? 'Add' : 'Remove'}
+                        </button>
+                    ))}
+                </div>
+                <Input id="credits" type="number" min={1} max={100000} label="Credits" value={amount} onChange={e => setAmount(e.target.value)} error={error ?? undefined} />
+                <Input id="note" label="Note (optional)" placeholder="e.g. Council demo, refund for a bad recording" maxLength={150} value={note} onChange={e => setNote(e.target.value)} />
             </div>
         </Modal>
     )

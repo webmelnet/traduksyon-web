@@ -41,7 +41,7 @@ export default function RegisterPage() {
         return (
             <AuthShell
                 title="Check your inbox"
-                subtitle="One more step before your free trial starts."
+                subtitle="One more step before you get your free credits."
                 footer={
                     <>
                         Already confirmed?{' '}
@@ -68,7 +68,7 @@ export default function RegisterPage() {
 
     return (
         <AuthShell
-            title="Start your free trial"
+            title="Create your account"
             subtitle={
                 <span className="flex items-center gap-1.5">
                     <CheckCircle2 className="h-4 w-4 text-success" /> 14 days free · No card required

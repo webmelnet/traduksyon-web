@@ -1,7 +1,7 @@
 'use client'
 
 import useSWR from 'swr'
-import { CalendarPlus, KeyRound, MoreVertical, Pencil, RotateCcw, Search, Send, Trash2, UserPlus } from 'lucide-react'
+import { Coins, KeyRound, MoreVertical, Pencil, RotateCcw, Search, Send, Trash2, UserPlus } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import React, { useEffect, useRef, useState } from 'react'
 import Alert from '@/components/ui/Alert'
@@ -12,10 +12,10 @@ import { Spinner } from '@/components/ui/Spinner'
 import { useToast } from '@/contexts/ToastContext'
 import { useAuth } from '@/hooks/auth'
 import axios from '@/lib/axios'
-import type { ManagedUser, Paginated, Role, SubscriptionState } from '@/types'
+import type { CreditState, ManagedUser, Paginated, Role } from '@/types'
 import { errorMessage, formatDate, initials } from '@/utils/format'
 import { hasPermission } from '@/utils/permissions'
-import { ConfirmModal, ExtendTrialModal, ResetPasswordModal, UserFormModal } from './UserModals'
+import { AdjustCreditsModal, ConfirmModal, ResetPasswordModal, UserFormModal } from './UserModals'
 
 const fetcher = (url: string) => axios.get(url).then(r => r.data)
 
@@ -23,7 +23,7 @@ type Dialog =
     | { kind: 'create' }
     | { kind: 'edit'; user: ManagedUser }
     | { kind: 'reset'; user: ManagedUser }
-    | { kind: 'trial'; user: ManagedUser }
+    | { kind: 'credits'; user: ManagedUser }
     | { kind: 'delete' | 'force' | 'restore' | 'resend'; user: ManagedUser }
     | null
 
@@ -149,7 +149,7 @@ export default function UsersPage() {
                                                 </Badge>
                                             ))}
                                             <UserStatus user={u} />
-                                            <SubBadge sub={u.subscription} />
+                                            <CreditBadge credits={u.credits} />
                                         </div>
                                     </div>
                                     <RowActions user={u} me={me.id} tab={tab} can={can} onPick={setDialog} />
@@ -163,7 +163,7 @@ export default function UsersPage() {
                                         <th className="px-5 py-3">User</th>
                                         <th className="px-5 py-3">Roles</th>
                                         <th className="px-5 py-3">Status</th>
-                                        <th className="px-5 py-3">Subscription</th>
+                                        <th className="px-5 py-3">Credits</th>
                                         <th className="px-5 py-3">{tab === 'trashed' ? 'Deleted' : 'Last login'}</th>
                                         <th className="w-12 px-5 py-3" />
                                     </tr>
@@ -193,7 +193,7 @@ export default function UsersPage() {
                                                 <UserStatus user={u} />
                                             </td>
                                             <td className="px-5 py-3">
-                                                <SubBadge sub={u.subscription} detailed />
+                                                <CreditBadge credits={u.credits} />
                                             </td>
                                             <td className="px-5 py-3 text-muted">{formatDate(tab === 'trashed' ? u.deleted_at : u.last_login_at)}</td>
                                             <td className="px-5 py-3">
@@ -245,12 +245,12 @@ export default function UsersPage() {
                     }}
                 />
             )}
-            {dialog?.kind === 'trial' && (
-                <ExtendTrialModal
+            {dialog?.kind === 'credits' && (
+                <AdjustCreditsModal
                     user={dialog.user}
                     onClose={() => setDialog(null)}
                     onSaved={() => {
-                        toast('Access extended.')
+                        toast('Credits updated.')
                         setDialog(null)
                         mutate()
                     }}
@@ -290,17 +290,10 @@ function UserStatus({ user }: { user: ManagedUser }) {
     return user.is_active ? <Badge tone="green">Active</Badge> : <Badge tone="gray">Inactive</Badge>
 }
 
-function SubBadge({ sub, detailed = false }: { sub: SubscriptionState; detailed?: boolean }) {
-    const badge =
-        sub.status === 'trial' ? <Badge tone="teal">Trial · {sub.trial_days_left}d</Badge> : sub.status === 'active' ? <Badge tone="green">{sub.plan?.name ?? 'Subscribed'}</Badge> : sub.status === 'exempt' ? <Badge tone="purple">Staff</Badge> : <Badge tone="red">Expired</Badge>
-    if (!detailed) return badge
-    const until = sub.status === 'active' ? sub.ends_at : sub.status === 'trial' ? sub.trial_ends_at : null
-    return (
-        <div className="flex flex-col items-start gap-0.5">
-            {badge}
-            {until && <span className="text-xs text-muted">until {formatDate(until)}</span>}
-        </div>
-    )
+function CreditBadge({ credits }: { credits: CreditState }) {
+    if (credits.exempt) return <Badge tone="purple">Staff</Badge>
+    const n = new Intl.NumberFormat('en-PH').format(credits.balance)
+    return <Badge tone={credits.balance <= 0 ? 'red' : credits.low ? 'amber' : 'green'}>{n} credits</Badge>
 }
 
 function RowActions({ user, me, tab, can, onPick }: { user: ManagedUser; me: number; tab: 'active' | 'trashed'; can: (p: string) => boolean; onPick: (d: Dialog) => void }) {
@@ -317,7 +310,7 @@ function RowActions({ user, me, tab, can, onPick }: { user: ManagedUser; me: num
         if (can('users.edit_user')) items.push({ label: 'Edit', Icon: Pencil, d: { kind: 'edit', user } })
         if (can('users.edit_user') && user.invitation_pending) items.push({ label: 'Resend invitation', Icon: Send, d: { kind: 'resend', user } })
         if (can('users.edit_user')) items.push({ label: 'Reset password', Icon: KeyRound, d: { kind: 'reset', user } })
-        if (can('users.manage_subscription') && user.subscription.status !== 'exempt') items.push({ label: 'Extend access', Icon: CalendarPlus, d: { kind: 'trial', user } })
+        if (can('users.manage_subscription') && !user.credits.exempt) items.push({ label: 'Add / remove credits', Icon: Coins, d: { kind: 'credits', user } })
         if (can('users.delete_user') && user.id !== me) items.push({ label: 'Delete', Icon: Trash2, d: { kind: 'delete', user }, danger: true })
     } else if (can('users.delete_user')) {
         items.push({ label: 'Restore', Icon: RotateCcw, d: { kind: 'restore', user } })

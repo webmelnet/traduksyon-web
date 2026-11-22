@@ -1,6 +1,6 @@
 'use client'
 
-import useSWR from 'swr'
+import useSWR, { useSWRConfig } from 'swr'
 import { FileAudio, FileText, Sparkles, UploadCloud, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import React, { useEffect, useRef, useState } from 'react'
@@ -12,6 +12,9 @@ import Modal from '@/components/ui/Modal'
 import axios from '@/lib/axios'
 import type { FieldErrors, MeetingMinutes, MinutesOptions, TranscriptionOptions } from '@/types'
 import { errorMessage, formatDate } from '@/utils/format'
+import CreditCostNote from '@/components/CreditCostNote'
+import { useAuth } from '@/hooks/auth'
+import { formatCredits, readMediaDuration, transcriptionCost } from '@/utils/credits'
 
 const fetcher = (url: string) => axios.get(url).then(r => r.data)
 
@@ -53,10 +56,14 @@ export default function CreateMinutesModal({ open, onClose, transcriptionId }: P
     const [form, setForm] = useState({ transcription_id: '', title: '', output_language: 'eng', instructions: '', language: 'auto', num_speakers: '' })
     const [errors, setErrors] = useState<FieldErrors>({})
     const [progress, setProgress] = useState<number | null>(null)
+    const [duration, setDuration] = useState<number | null>(null)
+    const { user } = useAuth()
+    const { mutate } = useSWRConfig()
 
     useEffect(() => {
         if (!open) return
         setFile(null)
+        setDuration(null)
         setErrors({})
         setProgress(null)
         setSource('transcript')
@@ -80,6 +87,8 @@ export default function CreateMinutesModal({ open, onClose, transcriptionId }: P
             return
         }
         setFile(f)
+        setDuration(null)
+        readMediaDuration(f).then(setDuration)
         if (!form.title) setForm(v => ({ ...v, title: f.name.replace(/\.[^.]+$/, '') }))
     }
 
@@ -108,6 +117,7 @@ export default function CreateMinutesModal({ open, onClose, transcriptionId }: P
             const res = await axios.post<{ minutes: MeetingMinutes }>('/api/minutes', fd, {
                 onUploadProgress: e => source === 'recording' && setProgress(e.total ? Math.round((e.loaded / e.total) * 100) : null),
             })
+            mutate('/api/user') // balance changed
             router.push(`/minutes/${res.data.minutes.id}`)
             onClose()
         } catch (err: any) {
@@ -139,6 +149,17 @@ export default function CreateMinutesModal({ open, onClose, transcriptionId }: P
             }>
             <div className="space-y-5">
                 {errors.general && <Alert tone="error">{errors.general[0]}</Alert>}
+                {user && (() => {
+                    const c = user.credits.costs
+                    if (source === 'transcript') return <CreditCostNote cost={c.minutes} />
+                    const audio = file ? transcriptionCost(duration, c) : null
+                    return (
+                        <CreditCostNote
+                            cost={audio != null ? audio + c.minutes : null}
+                            hint={`Uses ${formatCredits(c.minutes)} for the minutes plus ${c.transcription_per_minute} credit per minute of audio.`}
+                        />
+                    )
+                })()}
                 {options?.driver === 'fake' && <Alert tone="warning">Demo mode: no AI key is configured, so you&apos;ll get sample minutes instead of real ones.</Alert>}
 
                 <div className="grid gap-2 sm:grid-cols-2">

@@ -1,6 +1,6 @@
 'use client'
 
-import useSWR from 'swr'
+import useSWR, { useSWRConfig } from 'swr'
 import { ClipboardList, FileText, Sparkles } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
@@ -13,6 +13,8 @@ import Modal from '@/components/ui/Modal'
 import axios from '@/lib/axios'
 import type { CommitteeReport, FieldErrors, ReportOptions, ReportSource } from '@/types'
 import { errorMessage, formatDate } from '@/utils/format'
+import CreditCostNote from '@/components/CreditCostNote'
+import { useAuth } from '@/hooks/auth'
 
 const fetcher = (url: string) => axios.get(url).then(r => r.data)
 
@@ -44,6 +46,8 @@ interface Props {
 export default function CreateReportModal({ open, onClose, preset }: Props) {
     const router = useRouter()
     const { data: options } = useSWR<ReportOptions>(open ? '/api/reports/options' : null, fetcher)
+    const { user } = useAuth()
+    const { mutate } = useSWRConfig()
 
     const [source, setSource] = useState<ReportSource>('minutes')
     const [form, setForm] = useState({ meeting_minute_id: '', transcription_id: '', title: '', output_language: 'eng', instructions: '' })
@@ -87,6 +91,7 @@ export default function CreateReportModal({ open, onClose, preset }: Props) {
                 output_language: form.output_language,
                 instructions: form.instructions.trim() || null,
             })
+            mutate('/api/user') // balance changed
             router.push(`/reports/${res.data.report.id}`)
             onClose()
         } catch (err: any) {
@@ -119,6 +124,7 @@ export default function CreateReportModal({ open, onClose, preset }: Props) {
             }>
             <div className="space-y-5">
                 {errors.general && <Alert tone="error">{errors.general[0]}</Alert>}
+                {user && <CreditCostNote cost={user.credits.costs.report} />}
                 {options?.driver === 'fake' && <Alert tone="warning">Demo mode: no AI key is configured, so you&apos;ll get a sample report instead of a real one.</Alert>}
 
                 <div className="grid gap-2 sm:grid-cols-2">

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { CircleUserRound, CreditCard, LogOut, Settings, ShieldCheck } from 'lucide-react'
+import { CircleUserRound, Coins, LogOut, Settings, ShieldCheck } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { LogoMark } from '@/components/Logo'
 import type { AuthUser } from '@/types'
@@ -30,6 +30,19 @@ export default function Header({ user, onLogout }: { user: AuthUser; onLogout: (
                 </Link>
                 <div className="hidden md:block" />
 
+                <div className="flex items-center gap-2">
+                {!user.credits.exempt && (
+                    <Link
+                        href="/billing"
+                        title="Your credits"
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-semibold ${
+                            user.credits.balance < 0 || user.credits.low ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-line bg-white text-dark hover:border-primary'
+                        }`}>
+                        <Coins className="h-4 w-4 text-primary" />
+                        {new Intl.NumberFormat('en-PH').format(user.credits.balance)}
+                        <span className="hidden font-normal text-muted sm:inline">credits</span>
+                    </Link>
+                )}
                 <div className="relative" ref={ref}>
                     <button
                         onClick={() => setOpen(o => !o)}
@@ -51,7 +64,7 @@ export default function Header({ user, onLogout }: { user: AuthUser; onLogout: (
                             </div>
                             <div className="py-1 text-sm" onClick={() => setOpen(false)}>
                                 <MenuLink href="/settings" Icon={Settings} label="Settings" />
-                                <MenuLink href="/billing" Icon={CreditCard} label="Subscription" />
+                                <MenuLink href="/billing" Icon={Coins} label="Credits" />
                                 {canUseAdmin(user) && <MenuLink href="/admin" Icon={ShieldCheck} label="Admin console" />}
                                 <button onClick={onLogout} className="flex w-full items-center gap-3 px-4 py-2.5 text-danger hover:bg-red-50">
                                     <LogOut className="h-4 w-4" /> Log out
@@ -59,6 +72,7 @@ export default function Header({ user, onLogout }: { user: AuthUser; onLogout: (
                             </div>
                         </div>
                     )}
+                </div>
                 </div>
             </div>
         </header>

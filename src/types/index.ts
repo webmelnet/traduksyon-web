@@ -1,27 +1,38 @@
-export type SubscriptionStatus = 'trial' | 'active' | 'expired' | 'exempt'
-
 export interface Plan {
     id: number
     code: string
     name: string
     description: string | null
     price: number // in centavos
+    credits: number // a one-time credit pack
     currency: string
-    interval: 'month' | 'year'
-    interval_count: number
     features: string[] | null
     is_featured: boolean
 }
 
-export interface SubscriptionState {
-    status: SubscriptionStatus
-    access: boolean
-    on_trial: boolean
-    trial_ends_at: string | null
-    trial_days_left: number
-    ends_at: string | null
-    days_left: number
-    plan: Pick<Plan, 'id' | 'code' | 'name'> | null
+export interface CreditCosts {
+    transcription_per_minute: number
+    minutes: number
+    report: number
+}
+
+/** `exempt` = staff account (never charged). `low` = below the API's low-balance threshold. */
+export interface CreditState {
+    balance: number
+    exempt: boolean
+    low: boolean
+    costs: CreditCosts
+}
+
+export type CreditTransactionType = 'signup' | 'purchase' | 'usage' | 'refund' | 'adjustment'
+
+export interface CreditTransaction {
+    id: number
+    type: CreditTransactionType
+    amount: number
+    balance_after: number
+    description: string
+    created_at: string
 }
 
 export interface Role {
@@ -38,7 +49,7 @@ export interface AuthUser {
     role: string | null
     roles?: Role[]
     permissions?: string[]
-    subscription: SubscriptionState
+    credits: CreditState
 }
 
 export interface ManagedUser {
@@ -52,7 +63,7 @@ export interface ManagedUser {
     deleted_at?: string | null
     roles_list: string[]
     invitation_pending: boolean
-    subscription: SubscriptionState
+    credits: CreditState
 }
 
 export interface Payment {
@@ -61,6 +72,7 @@ export interface Payment {
     provider: string
     payment_method: string | null
     amount: number
+    credits: number | null
     currency: string
     status: 'pending' | 'paid' | 'failed' | 'expired' | 'cancelled'
     paid_at: string | null

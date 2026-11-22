@@ -1,6 +1,8 @@
 'use client'
 
-import useSWR from 'swr'
+import useSWR, { mutate as revalidateKey } from 'swr'
+import CreditCostNote from '@/components/CreditCostNote'
+import { useAuth } from '@/hooks/auth'
 import { ArrowLeft, ClipboardList, Copy, FileText, Pencil, RotateCcw, Sparkles, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
@@ -85,6 +87,7 @@ export default function ReportDetailPage() {
         try {
             const res = await axios.post<{ report: CommitteeReport }>(`/api/reports/${r.id}/regenerate`, body)
             await mutate(res.data.report, { revalidate: false })
+            revalidateKey('/api/user') // credits were charged
             setRegenOpen(false)
             setEditing(false)
         } catch (err) {
@@ -365,6 +368,7 @@ function RegenerateModal({
             }>
             <div className="space-y-4">
                 <Alert tone="warning">This replaces the current report, including any edits you made.</Alert>
+                <RegenerateCost kind="report" />
                 <div>
                     <label htmlFor="rr-lang" className="mb-1.5 block text-sm font-medium text-body">
                         Write report in
@@ -400,4 +404,11 @@ function BackLink() {
             <ArrowLeft className="h-4 w-4" /> Committee reports
         </Link>
     )
+}
+
+/** Regenerating is a new AI run, so it costs credits again (refunded if it fails). */
+function RegenerateCost({ kind }: { kind: 'minutes' | 'report' }) {
+    const { user } = useAuth()
+    if (!user) return null
+    return <CreditCostNote cost={kind === 'minutes' ? user.credits.costs.minutes : user.credits.costs.report} />
 }

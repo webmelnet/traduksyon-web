@@ -14,7 +14,7 @@ import { errorMessage, formatMoney, PAYMENT_METHOD_LABELS } from '@/utils/format
 
 /**
  * Simulated hosted-checkout page, used only when the API runs with PAYMENT_DRIVER=fake
- * (no gateway keys yet). Lets you exercise the full subscribe → activate flow end to end.
+ * (no gateway keys yet). Lets you exercise the full buy → credits added flow end to end.
  */
 export default function FakeCheckoutPage() {
     const { id } = useParams<{ id: string }>()

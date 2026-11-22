@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ChevronRight, CreditCard, Download, Lock, LogOut, Mail, Share, ShieldCheck, User } from 'lucide-react'
+import { ChevronRight, Coins, Download, Lock, LogOut, Mail, Share, ShieldCheck, User } from 'lucide-react'
 import React, { useEffect, useState } from 'react'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
@@ -94,7 +94,7 @@ export default function SettingsPage() {
             </div>
 
             <Card className="divide-y divide-line overflow-hidden">
-                <RowLink href="/billing" Icon={CreditCard} label="Subscription & payments" />
+                <RowLink href="/billing" Icon={Coins} label="Credits & payments" />
                 {canUseAdmin(user) && <RowLink href="/admin" Icon={ShieldCheck} label="Admin console" />}
                 <div className="flex items-center gap-4 px-5 py-4">
                     <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-mint text-primary-deep">

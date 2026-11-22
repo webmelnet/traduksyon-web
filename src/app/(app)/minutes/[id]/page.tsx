@@ -1,6 +1,8 @@
 'use client'
 
-import useSWR from 'swr'
+import useSWR, { mutate as revalidateKey } from 'swr'
+import CreditCostNote from '@/components/CreditCostNote'
+import { useAuth } from '@/hooks/auth'
 import { ArrowLeft, CalendarClock, CheckCircle2, ClipboardList, Copy, FileText, Gavel, ListChecks, Pencil, RotateCcw, ScrollText, Sparkles, Trash2, Users } from 'lucide-react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
@@ -83,6 +85,7 @@ export default function MinutesDetailPage() {
         try {
             const res = await axios.post<{ minutes: MeetingMinutes }>(`/api/minutes/${m.id}/regenerate`, body)
             await mutate(res.data.minutes, { revalidate: false })
+            revalidateKey('/api/user') // credits were charged
             setRegenOpen(false)
             setEditing(false)
         } catch (err) {
@@ -363,6 +366,7 @@ function RegenerateModal({
             }>
             <div className="space-y-4">
                 <Alert tone="warning">This replaces the current minutes, including any edits you made.</Alert>
+                <RegenerateCost kind="minutes" />
                 <p className="text-sm text-muted">Tip: rename the speakers on the transcript first, so the minutes use real names.</p>
                 <div>
                     <label htmlFor="r-lang" className="mb-1.5 block text-sm font-medium text-body">
@@ -399,4 +403,11 @@ function BackLink() {
             <ArrowLeft className="h-4 w-4" /> Minutes
         </Link>
     )
+}
+
+/** Regenerating is a new AI run, so it costs credits again (refunded if it fails). */
+function RegenerateCost({ kind }: { kind: 'minutes' | 'report' }) {
+    const { user } = useAuth()
+    if (!user) return null
+    return <CreditCostNote cost={kind === 'minutes' ? user.credits.costs.minutes : user.credits.costs.report} />
 }

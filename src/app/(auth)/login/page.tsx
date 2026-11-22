@@ -33,7 +33,7 @@ export default function LoginPage() {
             }
         }
         if (params.get('passwordSet')) setStatus('Your password has been set. You can now log in.')
-        if (params.get('verified')) setStatus('Your email is confirmed. Log in to start your 14-day free trial.')
+        if (params.get('verified')) setStatus('Your email is confirmed. Log in to use your free credits.')
     }, [])
 
     const submit = async (e: React.FormEvent) => {
@@ -64,7 +64,7 @@ export default function LoginPage() {
                 <>
                     New to Traduksyon?{' '}
                     <Link href="/register" className="font-semibold text-primary hover:text-primary-hover">
-                        Start your 14-day free trial
+                        Sign up and get free credits
                     </Link>
                 </>
             }>

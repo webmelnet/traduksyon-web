@@ -39,7 +39,7 @@ export const useAuth = ({ middleware, redirectIfAuthenticated }: UseAuthOptions 
         mutate,
         isLoading,
     } = useSWR<AuthUser, AxiosError>('/api/user', () => axios.get('/api/user').then(res => res.data), {
-        // Role / subscription changes made elsewhere (admin, payment webhook) are not pushed
+        // Role / credit balance changes made elsewhere (admin, payment webhook) are not pushed
         // to open sessions, so poll like winv-web does.
         refreshInterval: 60000,
         shouldRetryOnError: false,

@@ -10,7 +10,7 @@ import { useAuth } from '@/hooks/auth'
 
 /**
  * Admin console shell (/admin/*): Superadmin / Admin only. Separate from the customer shell in (app):
- * no subscription gate, no bottom nav, its own dark sidebar. Customers are sent back to /home.
+ * no bottom nav, its own dark sidebar. Customers are sent back to /home.
  * Each page still checks its own permission (see components/admin/nav.ts) and the API enforces it.
  */
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

@@ -1,6 +1,6 @@
 'use client'
 
-import useSWR from 'swr'
+import useSWR, { useSWRConfig } from 'swr'
 import { FileAudio, UploadCloud, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import React, { useEffect, useRef, useState } from 'react'
@@ -12,6 +12,9 @@ import axios from '@/lib/axios'
 import type { FieldErrors, Transcription, TranscriptionMode, TranscriptionOptions } from '@/types'
 import { errorMessage } from '@/utils/format'
 import { formatBytes } from './helpers'
+import CreditCostNote from '@/components/CreditCostNote'
+import { useAuth } from '@/hooks/auth'
+import { readMediaDuration, transcriptionCost } from '@/utils/credits'
 
 const fetcher = (url: string) => axios.get(url).then(r => r.data)
 
@@ -31,10 +34,14 @@ export default function UploadModal({ open, onClose }: { open: boolean; onClose:
     const [form, setForm] = useState({ title: '', language: 'auto', mode: 'verbatim' as TranscriptionMode, num_speakers: '', keyterms: '' })
     const [errors, setErrors] = useState<FieldErrors>({})
     const [progress, setProgress] = useState<number | null>(null)
+    const [duration, setDuration] = useState<number | null>(null)
+    const { user } = useAuth()
+    const { mutate } = useSWRConfig()
 
     useEffect(() => {
         if (!open) return
         setFile(null)
+        setDuration(null)
         setErrors({})
         setProgress(null)
         setForm({ title: '', language: 'auto', mode: 'verbatim', num_speakers: '', keyterms: '' })
@@ -51,6 +58,8 @@ export default function UploadModal({ open, onClose }: { open: boolean; onClose:
             return
         }
         setFile(f)
+        setDuration(null)
+        readMediaDuration(f).then(setDuration)
         if (!form.title) setForm(v => ({ ...v, title: f.name.replace(/\.[^.]+$/, '') }))
     }
 
@@ -73,6 +82,7 @@ export default function UploadModal({ open, onClose }: { open: boolean; onClose:
             const res = await axios.post<{ transcription: Transcription }>('/api/transcriptions', fd, {
                 onUploadProgress: e => setProgress(e.total ? Math.round((e.loaded / e.total) * 100) : null),
             })
+            mutate('/api/user') // balance changed
             router.push(`/meetings/${res.data.transcription.id}`)
             onClose()
         } catch (err: any) {
@@ -103,6 +113,12 @@ export default function UploadModal({ open, onClose }: { open: boolean; onClose:
             }>
             <div className="space-y-5">
                 {errors.general && <Alert tone="error">{errors.general[0]}</Alert>}
+                {user && (
+                    <CreditCostNote
+                        cost={file ? transcriptionCost(duration, user.credits.costs) : null}
+                        hint={`Transcription uses ${user.credits.costs.transcription_per_minute} credit per minute of audio${file ? ' (we’ll read the exact length when it uploads)' : ''}.`}
+                    />
+                )}
                 {options?.driver === 'fake' && (
                     <Alert tone="warning">Demo mode: no speech-to-text key is configured, so you&apos;ll get a sample transcript instead of your audio.</Alert>
                 )}
