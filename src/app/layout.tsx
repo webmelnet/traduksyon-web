@@ -4,6 +4,12 @@ import './globals.css'
 import { ToastProvider } from '@/contexts/ToastContext'
 import ServiceWorkerRegister from '@/components/ServiceWorkerRegister'
 
+/**
+ * Chrome/Edge fire `beforeinstallprompt` as soon as the page qualifies, often before React
+ * hydrates. Stash it on window so useInstallPrompt can pick it up whenever it mounts.
+ */
+const CAPTURE_INSTALL_PROMPT = `window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__installPrompt=e;window.dispatchEvent(new Event('installpromptready'))});window.addEventListener('appinstalled',function(){window.__installPrompt=null});`
+
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' })
 
 export const metadata: Metadata = {
@@ -32,6 +38,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
     return (
         <html lang="en" className={inter.variable}>
+            <head>
+                <script dangerouslySetInnerHTML={{ __html: CAPTURE_INSTALL_PROMPT }} />
+            </head>
             <body suppressHydrationWarning>
                 <ToastProvider>{children}</ToastProvider>
                 <ServiceWorkerRegister />

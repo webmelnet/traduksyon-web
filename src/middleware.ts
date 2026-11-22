@@ -6,7 +6,7 @@ import type { NextRequest } from 'next/server'
 // Cookie name = Str::slug(APP_NAME).'_session' in Laravel → "traduksyon_session".
 const SESSION_COOKIE = process.env.NEXT_PUBLIC_SESSION_COOKIE || 'traduksyon_session'
 
-const PUBLIC_PREFIXES = ['/login', '/register', '/forgot-password', '/password-reset', '/set-password', '/verify-email', '/offline']
+const PUBLIC_PREFIXES = ['/login', '/register', '/forgot-password', '/password-reset', '/set-password', '/verify-email', '/offline', '/install']
 
 export function middleware(request: NextRequest) {
     const path = request.nextUrl.pathname
