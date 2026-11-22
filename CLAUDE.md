@@ -48,9 +48,10 @@ Tokens in `tailwind.config.ts`: `primary` #0D9488 (CTA/active), `primary-hover`/
 ## Committee reports (`/reports`) — added 2026-11-21
 - Home's **Summarize** item → `/reports` (sidebar "Committee reports", not in the phone BottomNav). Purple `ai` tone.
 - `components/reports/CreateReportModal.tsx` — source "From minutes of meeting" (default) or "From a transcript", title, Full English / Full Tagalog, optional "Committee details" (committee name, report no., addressed to, members). `/reports?minutes=ID` / `?transcription=ID` preselect a source; the purple **Committee report** button on `/minutes/[id]` links there.
-- `/reports/[id]` renders the report like the printed document (centered title, header `dl`, Roman-numbered sections, signature lines from `members_present`), plus Edit (`ReportEditor.tsx`), Copy, Download, Regenerate (hidden when the source was deleted), Delete.
-- Headings come from `reportLabels(lang)` in `components/reports/helpers.ts` (e.g. Panimula, Mga rekomendasyon, Magalang na isinumite). `headerRows()` and `reportToText()` are shared by the view, Copy and exports.
-- Export: `components/reports/exportReport.ts` (.docx with borderless header table and a two-column signature table, .pdf, .txt).
+- `/reports/[id]` renders the report in the **Sangguniang Panlungsod "Details of the Committee Report" format** (2026-11-22; the cover page was removed at the user's request): DETAILS OF THE COMMITTEE REPORT NO. ____, (TO:, referral, I. Background, II. Findings and Observations as "**On X.** text", III. Committee Recommendations, IV. Committee Action, Recommendation, committee + signatures). Plus Edit (`ReportEditor.tsx`), Copy, Download, Regenerate (hidden when the source was deleted), Delete.
+- Headings **and the fixed boilerplate sentences** (findings and recommendations lead-ins, default TO:) come from `reportLabels(lang)` in `components/reports/helpers.ts`, eng + fil. `reportNoLine()` (blank `________` when no number), `findingTopic()`, `paragraphs()` and `reportToText()` are shared by the view, Copy and exports.
+- Export: `components/reports/exportReport.ts` — .docx and .pdf in the same layout, signatures right-aligned. .txt = `reportToText()`.
+- The API converts old-shape reports on read, so the web only knows the new `ReportContent`.
 - **PDF exports replace `₱` with `PHP `** (reports and minutes): jsPDF's built-in Helvetica has no peso glyph.
 
 ## Not built yet

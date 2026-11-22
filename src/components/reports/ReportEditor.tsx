@@ -25,54 +25,49 @@ type People = { name: string; role: string }[]
 
 interface Draft {
     title: string
-    committee: string
     report_no: string
-    report_date: string
-    addressed_to: string
+    committee: string
     subject: string
-    introduction: string
-    proceedings: string
-    members_present: People
-    others_present: People
-    findings: { topic: string; points: string }[]
+    addressed_to: string
+    referral: string
+    background: string
+    findings: { topic: string; text: string }[]
     recommendations: string
-    conclusion: string
+    committee_action: string
+    recommendation: string
+    signatories: People
     notes: string
 }
 
 const toDraft = (c: ReportContent): Draft => ({
     title: c.title,
-    committee: c.committee ?? '',
     report_no: c.report_no ?? '',
-    report_date: c.report_date ?? '',
-    addressed_to: c.addressed_to ?? '',
+    committee: c.committee ?? '',
     subject: c.subject,
-    introduction: c.introduction,
-    proceedings: c.proceedings,
-    members_present: c.members_present.map(p => ({ name: p.name, role: p.role ?? '' })),
-    others_present: c.others_present.map(p => ({ name: p.name, role: p.role ?? '' })),
-    findings: c.findings.map(f => ({ topic: f.topic, points: toLines(f.points) })),
+    addressed_to: c.addressed_to ?? '',
+    referral: c.referral,
+    background: c.background,
+    findings: c.findings.map(f => ({ topic: f.topic ?? '', text: f.text })),
     recommendations: toLines(c.recommendations),
-    conclusion: c.conclusion,
+    committee_action: c.committee_action,
+    recommendation: c.recommendation,
+    signatories: c.signatories.map(p => ({ name: p.name, role: p.role ?? '' })),
     notes: c.notes ?? '',
 })
 
-const people = (list: People) => list.filter(p => p.name.trim()).map(p => ({ name: p.name.trim(), role: orNull(p.role) }))
-
 const fromDraft = (d: Draft): ReportContent => ({
     title: d.title.trim(),
-    committee: orNull(d.committee),
     report_no: orNull(d.report_no),
-    report_date: orNull(d.report_date),
-    addressed_to: orNull(d.addressed_to),
+    committee: orNull(d.committee),
     subject: d.subject.trim(),
-    introduction: d.introduction.trim(),
-    proceedings: d.proceedings.trim(),
-    members_present: people(d.members_present),
-    others_present: people(d.others_present),
-    findings: d.findings.filter(f => f.topic.trim()).map(f => ({ topic: f.topic.trim(), points: fromLines(f.points) })),
+    addressed_to: orNull(d.addressed_to),
+    referral: d.referral.trim(),
+    background: d.background.trim(),
+    findings: d.findings.filter(f => f.text.trim()).map(f => ({ topic: orNull(f.topic), text: f.text.trim() })),
     recommendations: fromLines(d.recommendations),
-    conclusion: d.conclusion.trim(),
+    committee_action: d.committee_action.trim(),
+    recommendation: d.recommendation.trim(),
+    signatories: d.signatories.filter(p => p.name.trim()).map(p => ({ name: p.name.trim(), role: orNull(p.role) })),
     notes: orNull(d.notes),
 })
 
@@ -98,9 +93,15 @@ export default function ReportEditor({ initial, onSave, onCancel }: { initial: R
     const [error, setError] = useState<string | null>(null)
 
     const patch = (p: Partial<Draft>) => setD(v => ({ ...v, ...p }))
-    const updateAt = <K extends 'members_present' | 'others_present' | 'findings'>(key: K, i: number, p: Partial<Draft[K][number]>) =>
+    const updateAt = <K extends 'signatories' | 'findings'>(key: K, i: number, p: Partial<Draft[K][number]>) =>
         setD(v => ({ ...v, [key]: (v[key] as any[]).map((row, j) => (j === i ? { ...row, ...p } : row)) }))
-    const removeAt = (key: 'members_present' | 'others_present' | 'findings', i: number) => setD(v => ({ ...v, [key]: (v[key] as any[]).filter((_, j) => j !== i) }))
+    const removeAt = (key: 'signatories' | 'findings', i: number) => setD(v => ({ ...v, [key]: (v[key] as any[]).filter((_, j) => j !== i) }))
+    const area = (id: string, label: string, key: keyof Draft, rows = 3, placeholder?: string) => (
+        <div>
+            <Label htmlFor={id}>{label}</Label>
+            <textarea id={id} rows={Math.max(rows, String(d[key]).split('\n').length)} value={d[key] as string} onChange={e => patch({ [key]: e.target.value } as Partial<Draft>)} placeholder={placeholder} className={fieldCls} />
+        </div>
+    )
 
     const save = async () => {
         if (!d.title.trim()) return setError('Give the report a title.')
@@ -114,90 +115,56 @@ export default function ReportEditor({ initial, onSave, onCancel }: { initial: R
         }
     }
 
-    const peopleRows = (key: 'members_present' | 'others_present', addLabel: string, rolePh: string) => (
-        <>
-            <div className="space-y-2">
-                {d[key].map((p, i) => (
-                    <div key={i} className="flex gap-2">
-                        <input value={p.name} onChange={e => updateAt(key, i, { name: e.target.value })} placeholder="Name" className={smallCls} />
-                        <input value={p.role} onChange={e => updateAt(key, i, { role: e.target.value })} placeholder={rolePh} className={smallCls} />
-                        <RemoveButton onClick={() => removeAt(key, i)} label="Remove person" />
-                    </div>
-                ))}
-            </div>
-            <Button size="sm" variant="ghost" className="mt-2" icon={<Plus className="h-4 w-4" />} onClick={() => patch({ [key]: [...d[key], { name: '', role: '' }] } as Partial<Draft>)}>
-                {addLabel}
-            </Button>
-        </>
-    )
-
     return (
         <Card className="space-y-6 p-5 sm:p-7">
             {error && <Alert tone="error">{error}</Alert>}
 
-            <Input id="e-title" label="Title" value={d.title} onChange={e => patch({ title: e.target.value })} />
+            <Input id="e-title" label="Title (for your list)" value={d.title} onChange={e => patch({ title: e.target.value })} />
 
-            <div className="grid gap-4 sm:grid-cols-2">
-                <Input id="e-com" label="Committee" value={d.committee} onChange={e => patch({ committee: e.target.value })} placeholder="e.g. Committee on Finance" />
-                <div className="grid grid-cols-2 gap-4">
-                    <Input id="e-no" label="Report No." value={d.report_no} onChange={e => patch({ report_no: e.target.value })} placeholder="e.g. 12, s. 2026" />
-                    <Input id="e-date" label="Date" value={d.report_date} onChange={e => patch({ report_date: e.target.value })} placeholder="21/11/2026" />
-                </div>
+            <div className="grid gap-4 sm:grid-cols-[1fr_2fr]">
+                <Input id="e-no" label="Committee Report No." value={d.report_no} onChange={e => patch({ report_no: e.target.value })} placeholder="e.g. 078-2026" />
+                <Input id="e-com" label="Committee" value={d.committee} onChange={e => patch({ committee: e.target.value })} placeholder="e.g. Committee on Disaster Risk Reduction and Management" />
             </div>
-            <Input id="e-to" label="Addressed to" value={d.addressed_to} onChange={e => patch({ addressed_to: e.target.value })} placeholder="e.g. The Honorable Members of the Sangguniang Bayan" />
-            <Input id="e-sub" label="Subject" value={d.subject} onChange={e => patch({ subject: e.target.value })} />
+            <Input id="e-to" label="TO:" value={d.addressed_to} onChange={e => patch({ addressed_to: e.target.value })} placeholder="The Honorable Presiding Officer and Members of the August Body" />
+            {area('e-ref', 'Referral and hearing', 'referral', 3, 'When the matter was referred and when/where the hearing was held')}
+            {area('e-bg', 'I. Background', 'background', 4)}
 
             <div>
-                <Label htmlFor="e-intro">I. Introduction</Label>
-                <textarea id="e-intro" rows={4} value={d.introduction} onChange={e => patch({ introduction: e.target.value })} className={fieldCls} />
-            </div>
-            <div>
-                <Label htmlFor="e-proc">II. Committee proceedings</Label>
-                <textarea id="e-proc" rows={4} value={d.proceedings} onChange={e => patch({ proceedings: e.target.value })} className={fieldCls} />
-            </div>
-
-            <div className="grid gap-6 lg:grid-cols-2">
-                <div>
-                    <Label>Members present (also the signatories)</Label>
-                    {peopleRows('members_present', 'Add member', 'e.g. Chairperson')}
-                </div>
-                <div>
-                    <Label>Resource persons and guests</Label>
-                    {peopleRows('others_present', 'Add person', 'Office / role')}
-                </div>
-            </div>
-
-            <div>
-                <Label>III. Findings and discussion</Label>
+                <Label>II. Findings and observations (the issues)</Label>
                 <div className="space-y-3">
                     {d.findings.map((f, i) => (
                         <div key={i} className="rounded-xl border border-line p-3">
                             <div className="flex gap-2">
-                                <input value={f.topic} onChange={e => updateAt('findings', i, { topic: e.target.value })} placeholder="Topic" className={`${smallCls} font-semibold`} />
-                                <RemoveButton onClick={() => removeAt('findings', i)} label="Remove topic" />
+                                <input value={f.topic} onChange={e => updateAt('findings', i, { topic: e.target.value })} placeholder="Issue, e.g. On Budgetary Requirements (optional)" className={`${smallCls} font-semibold`} />
+                                <RemoveButton onClick={() => removeAt('findings', i)} label="Remove finding" />
                             </div>
-                            <textarea
-                                rows={Math.max(2, f.points.split('\n').length)}
-                                value={f.points}
-                                onChange={e => updateAt('findings', i, { points: e.target.value })}
-                                placeholder="One finding per line"
-                                className={`${fieldCls} mt-2 text-sm`}
-                            />
+                            <textarea rows={Math.max(2, Math.ceil(f.text.length / 90))} value={f.text} onChange={e => updateAt('findings', i, { text: e.target.value })} placeholder="What the committee noted" className={`${fieldCls} mt-2 text-sm`} />
                         </div>
                     ))}
                 </div>
-                <Button size="sm" variant="ghost" className="mt-2" icon={<Plus className="h-4 w-4" />} onClick={() => patch({ findings: [...d.findings, { topic: '', points: '' }] })}>
-                    Add topic
+                <Button size="sm" variant="ghost" className="mt-2" icon={<Plus className="h-4 w-4" />} onClick={() => patch({ findings: [...d.findings, { topic: '', text: '' }] })}>
+                    Add finding
                 </Button>
             </div>
 
+            {area('e-rec', 'III. Committee recommendations', 'recommendations', 3, 'One recommendation per line')}
+            {area('e-act', 'IV. Committee action (motion, mover, seconder, result)', 'committee_action', 3)}
+            {area('e-fin', 'Recommendation (closing)', 'recommendation', 3)}
+
             <div>
-                <Label htmlFor="e-rec">IV. Recommendations</Label>
-                <textarea id="e-rec" rows={Math.max(3, d.recommendations.split('\n').length)} value={d.recommendations} onChange={e => patch({ recommendations: e.target.value })} placeholder="One recommendation per line" className={fieldCls} />
-            </div>
-            <div>
-                <Label htmlFor="e-con">V. Conclusion</Label>
-                <textarea id="e-con" rows={3} value={d.conclusion} onChange={e => patch({ conclusion: e.target.value })} className={fieldCls} />
+                <Label>Signed by</Label>
+                <div className="space-y-2">
+                    {d.signatories.map((p, i) => (
+                        <div key={i} className="flex gap-2">
+                            <input value={p.name} onChange={e => updateAt('signatories', i, { name: e.target.value })} placeholder="Name" className={smallCls} />
+                            <input value={p.role} onChange={e => updateAt('signatories', i, { role: e.target.value })} placeholder="e.g. Chairperson" className={smallCls} />
+                            <RemoveButton onClick={() => removeAt('signatories', i)} label="Remove signatory" />
+                        </div>
+                    ))}
+                </div>
+                <Button size="sm" variant="ghost" className="mt-2" icon={<Plus className="h-4 w-4" />} onClick={() => patch({ signatories: [...d.signatories, { name: '', role: '' }] })}>
+                    Add signatory
+                </Button>
             </div>
             <Input id="e-notes" label="Notes" value={d.notes} onChange={e => patch({ notes: e.target.value })} placeholder="Optional" />
 

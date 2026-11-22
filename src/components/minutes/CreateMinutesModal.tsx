@@ -69,7 +69,7 @@ export default function CreateMinutesModal({ open, onClose, transcriptionId }: P
         if (options && !options.transcriptions.length && !transcriptionId) setSource('recording')
     }, [options, transcriptionId])
 
-    const maxMb = tOptions?.max_upload_mb ?? 200
+    const maxMb = tOptions?.max_upload_mb ?? 300
     const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm(f => ({ ...f, [k]: e.target.value }))
 
     const pick = (f?: File | null) => {

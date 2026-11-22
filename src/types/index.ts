@@ -180,21 +180,26 @@ export interface ReportPerson {
     role: string | null
 }
 
+/** Sangguniang Panlungsod "Details of the Committee Report" format (no cover page). See the API's ReportContent. */
 export interface ReportContent {
     title: string
-    committee: string | null
     report_no: string | null
-    report_date: string | null
-    addressed_to: string | null
+    committee: string | null
     subject: string
-    introduction: string
-    proceedings: string
-    members_present: ReportPerson[]
-    others_present: ReportPerson[]
-    findings: { topic: string; points: string[] }[]
+    addressed_to: string | null
+    referral: string
+    background: string
+    findings: ReportFinding[]
     recommendations: string[]
-    conclusion: string
+    committee_action: string
+    recommendation: string
+    signatories: ReportPerson[]
     notes: string | null
+}
+
+export interface ReportFinding {
+    topic: string | null
+    text: string
 }
 
 export interface CommitteeReport {

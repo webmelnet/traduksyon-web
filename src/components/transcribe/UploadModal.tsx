@@ -41,7 +41,7 @@ export default function UploadModal({ open, onClose }: { open: boolean; onClose:
     }, [open])
 
     const language = options?.languages.find(l => l.code === form.language)
-    const maxMb = options?.max_upload_mb ?? 200
+    const maxMb = options?.max_upload_mb ?? 300
 
     const pick = (f?: File | null) => {
         if (!f) return

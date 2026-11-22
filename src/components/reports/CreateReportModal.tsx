@@ -211,7 +211,7 @@ export default function CreateReportModal({ open, onClose, preset }: Props) {
                         rows={3}
                         value={form.instructions}
                         onChange={set('instructions')}
-                        placeholder="e.g. Committee on Finance. Report No. 12, s. 2026. To: Sangguniang Bayan of Masbate. Referred: Ordinance No. 5. Members: Hon. Cruz (Chair), Hon. Reyes."
+                        placeholder="e.g. Committee on Disaster Risk Reduction and Management. Report No. 078-2026. Sponsor and Chairperson: Hon. Albert T. Abayon. Referred during the 66th Regular Session, 06/10/2026."
                         className={textareaCls}
                     />
                     <p className="mt-1 text-xs text-muted">Committee name, report number, who it&apos;s addressed to and the members. The meeting stays the source of truth.</p>

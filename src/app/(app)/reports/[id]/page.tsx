@@ -8,7 +8,7 @@ import React, { useEffect, useState } from 'react'
 import { OUTPUT_LANGUAGE_LABELS } from '@/components/minutes/helpers'
 import ReportEditor from '@/components/reports/ReportEditor'
 import { exportReport } from '@/components/reports/exportReport'
-import { emptyReport, headerRows, isReportBusy, personLine, REPORT_STATUS, reportLabels, reportToText } from '@/components/reports/helpers'
+import { emptyReport, findingTopic, isReportBusy, paragraphs, REPORT_STATUS, reportLabels, reportNoLine, reportToText } from '@/components/reports/helpers'
 import Alert from '@/components/ui/Alert'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
@@ -167,7 +167,7 @@ export default function ReportDetailPage() {
                     <p className="mt-1 max-w-sm text-sm text-muted">
                         {r.status === 'waiting'
                             ? 'The report starts automatically once its source is ready. You can leave this page.'
-                            : 'The AI is turning the meeting into findings and recommendations. This usually takes under a minute.'}
+                            : 'The AI is summarizing the issues and the action taken. This usually takes under a minute.'}
                     </p>
                 </Card>
             )}
@@ -213,83 +213,65 @@ function Heading({ children }: { children: React.ReactNode }) {
     return <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-dark">{children}</h2>
 }
 
-function Paras({ text }: { text: string }) {
-    if (!text) return <p className="text-muted">—</p>
+function Paras({ text, className = '' }: { text: string; className?: string }) {
+    const ps = paragraphs(text)
+    if (!ps.length) return <p className="text-muted">—</p>
     return (
-        <div className="space-y-3 text-justify leading-relaxed text-body">
-            {text.split(/\n+/).map((p, i) => (
+        <div className={`space-y-3 text-justify leading-relaxed text-body ${className}`}>
+            {ps.map((p, i) => (
                 <p key={i}>{p}</p>
             ))}
         </div>
     )
 }
 
-/** Laid out like the printed report: centered title, header block, numbered sections, signatures. */
+function Signatures({ c }: { c: ReportContent }) {
+    if (!c.signatories.length) return null
+    return (
+        <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2">
+            {c.signatories.map((p, i) => (
+                <div key={i} className="pt-8 sm:col-start-2">
+                    <div className="border-t border-ink" />
+                    <div className="mt-1.5 text-center text-sm font-bold uppercase text-dark">{p.name}</div>
+                    {p.role && <div className="text-center text-xs italic text-muted">{p.role}</div>}
+                </div>
+            ))}
+        </div>
+    )
+}
+
+/** Laid out like the printed "Details of the Committee Report". */
 function ReportView({ c, lang }: { c: ReportContent; lang: string }) {
     const L = reportLabels(lang)
-    const rows = headerRows(c, L)
     return (
-        <div className="space-y-3">
+        <div className="space-y-4">
+            {/* Details page */}
             <Card className="mx-auto max-w-3xl space-y-7 p-5 sm:p-10">
                 <div className="text-center">
                     <div className="text-xs font-bold uppercase tracking-[0.2em] text-primary-deep">{L.document}</div>
-                    <h2 className="mt-2 text-xl font-bold text-dark sm:text-2xl">{c.title}</h2>
+                    <h2 className="mt-2 text-lg font-bold text-dark sm:text-xl">{reportNoLine(c, L)}</h2>
                 </div>
+                <div className="text-sm">
+                    <span className="font-bold text-dark">{L.to}</span> <span className="font-semibold uppercase text-dark">{c.addressed_to || L.addressedTo}</span>
+                </div>
+                {c.referral && <Paras text={c.referral} />}
 
-                {rows.length > 0 && (
-                    <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 border-b border-line pb-5 text-sm">
-                        {rows.map(([k, v]) => (
-                            <React.Fragment key={k}>
-                                <dt className="font-semibold text-dark">{k}:</dt>
-                                <dd className="text-body">{v}</dd>
-                            </React.Fragment>
-                        ))}
-                    </dl>
+                {c.background && (
+                    <section>
+                        <Heading>I. {L.background}</Heading>
+                        <Paras text={c.background} />
+                    </section>
                 )}
 
                 <section>
-                    <Heading>I. {L.introduction}</Heading>
-                    <Paras text={c.introduction} />
-                </section>
-
-                <section>
-                    <Heading>II. {L.proceedings}</Heading>
-                    <Paras text={c.proceedings} />
-                    {(c.members_present.length > 0 || c.others_present.length > 0) && (
-                        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                            {[
-                                [L.membersPresent, c.members_present],
-                                [L.othersPresent, c.others_present],
-                            ].map(([h, list]) =>
-                                (list as ReportContent['members_present']).length ? (
-                                    <div key={h as string} className="rounded-xl bg-canvas px-4 py-3">
-                                        <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted">{h as string}</div>
-                                        <ul className="space-y-1 text-sm text-body">
-                                            {(list as ReportContent['members_present']).map((p, i) => (
-                                                <li key={i}>{personLine(p)}</li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                ) : null,
-                            )}
-                        </div>
-                    )}
-                </section>
-
-                <section>
-                    <Heading>III. {L.findings}</Heading>
+                    <Heading>II. {L.findings}</Heading>
+                    <p className="mb-3 text-body">{L.findingsLead}</p>
                     {c.findings.length ? (
-                        <ol className="space-y-4">
+                        <ol className="list-decimal space-y-2.5 pl-5 text-justify leading-relaxed text-body marker:font-semibold marker:text-dark">
                             {c.findings.map((f, i) => (
-                                <li key={i}>
-                                    <div className="font-semibold text-dark">
-                                        {i + 1}. {f.topic}
-                                    </div>
-                                    <ul className="mt-1.5 list-disc space-y-1 pl-5 text-body marker:text-muted">
-                                        {f.points.map((p, j) => (
-                                            <li key={j}>{p}</li>
-                                        ))}
-                                    </ul>
+                                <li key={i} className="pl-1">
+                                    {f.topic && <span className="font-semibold text-dark">{findingTopic(f)} </span>}
+                                    {f.text}
                                 </li>
                             ))}
                         </ol>
@@ -299,9 +281,10 @@ function ReportView({ c, lang }: { c: ReportContent; lang: string }) {
                 </section>
 
                 <section>
-                    <Heading>IV. {L.recommendations}</Heading>
+                    <Heading>III. {L.recommendations}</Heading>
+                    <p className="mb-3 text-body">{L.recommendationsLead}</p>
                     {c.recommendations.length ? (
-                        <ol className="list-decimal space-y-1.5 pl-5 text-body marker:font-semibold marker:text-dark">
+                        <ol className="list-decimal space-y-1.5 pl-5 text-justify text-body marker:font-semibold marker:text-dark">
                             {c.recommendations.map((rec, i) => (
                                 <li key={i} className="pl-1">
                                     {rec}
@@ -313,27 +296,30 @@ function ReportView({ c, lang }: { c: ReportContent; lang: string }) {
                     )}
                 </section>
 
-                <section>
-                    <Heading>V. {L.conclusion}</Heading>
-                    <Paras text={c.conclusion} />
-                </section>
-
-                {c.members_present.length > 0 && (
-                    <section className="pt-2">
-                        <div className="font-semibold text-dark">{L.submitted}</div>
-                        <div className="mt-2 grid gap-x-8 gap-y-6 sm:grid-cols-2">
-                            {c.members_present.map((p, i) => (
-                                <div key={i} className="pt-8">
-                                    <div className="border-t border-ink" />
-                                    <div className="mt-1.5 text-sm font-bold uppercase text-dark">{p.name}</div>
-                                    {p.role && <div className="text-xs italic text-muted">{p.role}</div>}
-                                </div>
-                            ))}
-                        </div>
+                {c.committee_action && (
+                    <section>
+                        <Heading>IV. {L.action}</Heading>
+                        <Paras text={c.committee_action} />
                     </section>
                 )}
 
-                {c.notes && <p className="border-t border-line pt-4 text-xs italic text-muted">{L.notes}: {c.notes}</p>}
+                {c.recommendation && (
+                    <section>
+                        <Heading>{L.recommendation}</Heading>
+                        <Paras text={c.recommendation} />
+                    </section>
+                )}
+
+                <section className="pt-2">
+                    {c.committee && <div className="text-sm font-semibold text-dark">{c.committee}</div>}
+                    <Signatures c={c} />
+                </section>
+
+                {c.notes && (
+                    <p className="border-t border-line pt-4 text-xs italic text-muted">
+                        {L.notes}: {c.notes}
+                    </p>
+                )}
             </Card>
             <p className="mx-auto max-w-3xl px-1 text-xs text-muted">Written by AI — please review names, figures and recommendations before submitting.</p>
         </div>
