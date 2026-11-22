@@ -1,6 +1,6 @@
-import { ClipboardList, CreditCard, FileText, Home, Languages, Receipt, ScrollText, Settings, Users } from 'lucide-react'
+import { ClipboardList, CreditCard, FileText, Home, Languages, ScrollText, Settings, ShieldCheck } from 'lucide-react'
 import type { AuthUser } from '@/types'
-import { hasPermission } from '@/utils/permissions'
+import { canUseAdmin } from '@/components/admin/nav'
 
 export interface NavItem {
     href: string
@@ -11,6 +11,7 @@ export interface NavItem {
     visible?: (user: AuthUser) => boolean
 }
 
+/** Customer workspace nav (the (app) shell). Admin pages: components/admin/nav.ts. */
 export const NAV_ITEMS: NavItem[] = [
     { href: '/home', label: 'Home', Icon: Home, mobile: true },
     { href: '/meetings', label: 'My meetings', Icon: FileText, mobile: true },
@@ -18,9 +19,9 @@ export const NAV_ITEMS: NavItem[] = [
     { href: '/reports', label: 'Committee reports', Icon: ScrollText },
     { href: '/translate', label: 'Translate', Icon: Languages, mobile: true },
     { href: '/billing', label: 'Subscription', Icon: CreditCard },
-    { href: '/users', label: 'Users', Icon: Users, visible: u => hasPermission(u, 'users.access') },
-    { href: '/payments', label: 'Payments', Icon: Receipt, visible: u => hasPermission(u, 'billing.view_all_payments') },
     { href: '/settings', label: 'Settings', Icon: Settings, mobile: true },
+    // Admin pages live in their own shell, (admin)/admin/*. Customers never see this link.
+    { href: '/admin', label: 'Admin console', Icon: ShieldCheck, visible: canUseAdmin },
 ]
 
 export const isActive = (pathname: string, href: string) => pathname === href || pathname.startsWith(href + '/')

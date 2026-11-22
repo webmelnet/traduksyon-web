@@ -9,8 +9,9 @@ import TrialBanner from '@/components/layout/TrialBanner'
 import { FullPageLoader } from '@/components/ui/Spinner'
 import { useAuth } from '@/hooks/auth'
 
+/** Customer workspace shell. Admin pages have their own shell in (admin) with no subscription gate. */
 /** Pages that stay reachable after the trial/subscription lapses, so the user can pay or manage their account. */
-const ALWAYS_ALLOWED = ['/billing', '/settings', '/users', '/payments']
+const ALWAYS_ALLOWED = ['/billing', '/settings']
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
     const { user, logout } = useAuth({ middleware: 'auth' })

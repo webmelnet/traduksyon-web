@@ -1,12 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import { CircleUserRound, CreditCard, LogOut, Settings, Users } from 'lucide-react'
+import { CircleUserRound, CreditCard, LogOut, Settings, ShieldCheck } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { LogoMark } from '@/components/Logo'
 import type { AuthUser } from '@/types'
 import { initials } from '@/utils/format'
-import { hasPermission } from '@/utils/permissions'
+import { canUseAdmin } from '@/components/admin/nav'
 
 export default function Header({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
     const [open, setOpen] = useState(false)
@@ -52,7 +52,7 @@ export default function Header({ user, onLogout }: { user: AuthUser; onLogout: (
                             <div className="py-1 text-sm" onClick={() => setOpen(false)}>
                                 <MenuLink href="/settings" Icon={Settings} label="Settings" />
                                 <MenuLink href="/billing" Icon={CreditCard} label="Subscription" />
-                                {hasPermission(user, 'users.access') && <MenuLink href="/users" Icon={Users} label="Users" />}
+                                {canUseAdmin(user) && <MenuLink href="/admin" Icon={ShieldCheck} label="Admin console" />}
                                 <button onClick={onLogout} className="flex w-full items-center gap-3 px-4 py-2.5 text-danger hover:bg-red-50">
                                     <LogOut className="h-4 w-4" /> Log out
                                 </button>

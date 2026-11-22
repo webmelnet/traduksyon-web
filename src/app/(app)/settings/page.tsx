@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ChevronRight, CreditCard, Download, Lock, LogOut, Mail, Share, User, Users } from 'lucide-react'
+import { ChevronRight, CreditCard, Download, Lock, LogOut, Mail, Share, ShieldCheck, User } from 'lucide-react'
 import React, { useEffect, useState } from 'react'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
@@ -13,7 +13,7 @@ import { useInstallPrompt } from '@/hooks/useInstallPrompt'
 import axios from '@/lib/axios'
 import type { FieldErrors } from '@/types'
 import { errorMessage } from '@/utils/format'
-import { hasPermission } from '@/utils/permissions'
+import { canUseAdmin } from '@/components/admin/nav'
 
 export default function SettingsPage() {
     const { user, mutate, logout } = useAuth()
@@ -95,7 +95,7 @@ export default function SettingsPage() {
 
             <Card className="divide-y divide-line overflow-hidden">
                 <RowLink href="/billing" Icon={CreditCard} label="Subscription & payments" />
-                {hasPermission(user, 'users.access') && <RowLink href="/users" Icon={Users} label="User management" />}
+                {canUseAdmin(user) && <RowLink href="/admin" Icon={ShieldCheck} label="Admin console" />}
                 <div className="flex items-center gap-4 px-5 py-4">
                     <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-mint text-primary-deep">
                         <Download className="h-5 w-5" />

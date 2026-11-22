@@ -4,6 +4,13 @@ const nextConfig = {
     images: {
         remotePatterns: [{ protocol: 'https', hostname: '**' }],
     },
+    // Admin pages moved under /admin (2026-11-22); keep old bookmarks working.
+    async redirects() {
+        return [
+            { source: '/users', destination: '/admin/users', permanent: true },
+            { source: '/payments', destination: '/admin/payments', permanent: true },
+        ]
+    },
     async headers() {
         return [
             {

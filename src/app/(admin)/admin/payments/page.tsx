@@ -35,7 +35,7 @@ export default function PaymentsPage() {
     }, [search])
 
     useEffect(() => {
-        if (user && !allowed) router.replace('/home')
+        if (user && !allowed) router.replace('/admin')
     }, [user, allowed, router])
 
     const qs = new URLSearchParams({ search: debounced, status, page: String(page) }).toString()

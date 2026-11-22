@@ -49,7 +49,7 @@ export default function UsersPage() {
 
     const canAccess = hasPermission(me, 'users.access')
     useEffect(() => {
-        if (me && !canAccess) router.replace('/home')
+        if (me && !canAccess) router.replace('/admin')
     }, [me, canAccess, router])
 
     const query = new URLSearchParams({ search: debounced, role, status: tab, page: String(page) }).toString()

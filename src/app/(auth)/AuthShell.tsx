@@ -10,6 +10,8 @@ interface AuthShellProps {
     footer?: React.ReactNode
 }
 
+const MARKETING_URL = process.env.NEXT_PUBLIC_MARKETING_URL || 'https://www.traduksyon.com'
+
 const highlights = [
     { Icon: AudioLines, title: 'Transcribe', text: 'Turn meeting audio into accurate text.' },
     { Icon: Languages, title: 'Translate', text: 'Read it in your preferred language.' },
@@ -23,12 +25,12 @@ export default function AuthShell({ title, subtitle, children, footer }: AuthShe
             <aside className="relative hidden w-[46%] max-w-xl flex-col justify-between overflow-hidden bg-gradient-to-br from-primary-deep via-primary to-primary-fresh p-10 text-white lg:flex">
                 <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-white/10" />
                 <div className="absolute -bottom-32 -left-20 h-80 w-80 rounded-full bg-ai/25 blur-2xl" />
-                <div className="relative flex items-center gap-3">
+                <a href={MARKETING_URL} className="relative flex items-center gap-3">
                     <div className="rounded-2xl bg-white p-2 shadow-lg">
                         <LogoMark size={40} />
                     </div>
                     <span className="text-xl font-extrabold tracking-tight">Traduksyon.com</span>
-                </div>
+                </a>
                 <div className="relative">
                     <h2 className="text-4xl font-extrabold leading-tight text-white">{TAGLINE}</h2>
                     <p className="mt-4 max-w-md text-white/80">
@@ -65,7 +67,11 @@ export default function AuthShell({ title, subtitle, children, footer }: AuthShe
                         {footer && <div className="mt-6 text-center text-sm text-muted">{footer}</div>}
                     </div>
                 </div>
-                <p className="pb-safe py-4 text-center text-xs text-muted lg:hidden">© {new Date().getFullYear()} Traduksyon.com</p>
+                <p className="pb-safe py-4 text-center text-xs text-muted">
+                    <a href={MARKETING_URL} className="hover:text-primary">
+                        ← Back to traduksyon.com
+                    </a>
+                </p>
             </main>
         </div>
     )

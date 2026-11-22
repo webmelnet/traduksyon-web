@@ -23,7 +23,7 @@ export function Logo({ size = 36, showTagline = false, className = '' }: { size?
             <LogoMark size={size} />
             <div className="leading-tight">
                 <div className="font-extrabold tracking-tight text-dark" style={{ fontSize: size * 0.55 }}>
-                    Traduksyon<span className="text-primary-fresh">.io</span>
+                    Traduksyon<span className="text-primary-fresh">.com</span>
                 </div>
                 {showTagline && <div className="text-[11px] font-medium text-muted">{TAGLINE}</div>}
             </div>

@@ -1,7 +1,7 @@
 'use client'
 
 import useSWR from 'swr'
-import { AlertTriangle, ArrowLeft, Check, ClipboardList, Copy, Pencil, RotateCcw, Trash2, Users, X } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Check, ChevronDown, ClipboardList, Copy, Pencil, RotateCcw, Trash2, UserPlus, Users, X } from 'lucide-react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -71,10 +71,13 @@ export default function TranscriptionPage() {
         resumeAfterEditRef.current = false
     }, [])
 
-    /** Saves a manual correction; the API realigns word timings so seeking/highlighting keep working. */
+    /**
+     * Saves a manual correction to one line — new text (the API realigns word timings so seeking/highlighting
+     * keep working) and/or who said it. An unknown speaker id makes the API add that speaker.
+     */
     const saveSegment = useCallback(
-        async (index: number, text: string) => {
-            const res = await axios.put(`/api/transcriptions/${id}`, { segments: [{ index, text }] })
+        async (index: number, patch: SegmentPatch) => {
+            const res = await axios.put(`/api/transcriptions/${id}`, { segments: [{ index, ...patch }] })
             await mutate(res.data.transcription, { revalidate: false })
         },
         [id, mutate],
@@ -288,7 +291,10 @@ export default function TranscriptionPage() {
                                         </li>
                                     ))}
                                 </ul>
-                                <p className="mt-3 text-xs text-muted">Speakers are detected automatically. Tap a word or time to jump there in the audio. Spot a wrong word? Tap the pencil on that line to fix it.</p>
+                                <p className="mt-3 text-xs text-muted">
+                                    Speakers are detected automatically. Tap a word or time to jump there in the audio. Spot a wrong word? Tap the pencil on that line to fix it. Wrong person? Tap the name on that line to
+                                    change who said it.
+                                </p>
                             </Card>
                         </div>
                     </div>
@@ -338,6 +344,89 @@ function BackLink() {
     )
 }
 
+type SegmentPatch = { text?: string; speaker?: string }
+
+/** First letter not already used as a speaker id (A–Z, then AA, AB…). */
+function nextSpeakerId(speakers: TranscriptSpeaker[]): string {
+    const used = new Set(speakers.map(s => s.id))
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
+    return [...letters, ...letters.flatMap(a => letters.map(b => a + b))].find(l => !used.has(l)) ?? 'ZZ'
+}
+
+/** Speaker chip on a line; opens a menu to reassign just this line to another (or a new) speaker. */
+function SpeakerPicker({ speakers, current, disabled, onPick }: { speakers: TranscriptSpeaker[]; current: string; disabled?: boolean; onPick: (id: string) => Promise<void> }) {
+    const [open, setOpen] = useState(false)
+    const [working, setWorking] = useState(false)
+    const ref = useRef<HTMLDivElement>(null)
+
+    useEffect(() => {
+        if (!open) return
+        const close = (e: MouseEvent | KeyboardEvent) => {
+            if (e instanceof KeyboardEvent ? e.key === 'Escape' : !ref.current?.contains(e.target as Node)) setOpen(false)
+        }
+        document.addEventListener('mousedown', close)
+        document.addEventListener('keydown', close)
+        return () => {
+            document.removeEventListener('mousedown', close)
+            document.removeEventListener('keydown', close)
+        }
+    }, [open])
+
+    const pick = async (id: string) => {
+        if (id === current) return setOpen(false)
+        setWorking(true)
+        try {
+            await onPick(id)
+            setOpen(false)
+        } finally {
+            setWorking(false)
+        }
+    }
+
+    const newId = nextSpeakerId(speakers)
+
+    return (
+        <div ref={ref} className="relative">
+            <button
+                type="button"
+                disabled={disabled || working}
+                onClick={() => setOpen(o => !o)}
+                aria-haspopup="menu"
+                aria-expanded={open}
+                title="Change who said this line"
+                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold transition hover:ring-2 hover:ring-primary/30 disabled:opacity-60 ${speakerTone(speakers, current)}`}>
+                {working ? <Spinner className="h-3 w-3" /> : null}
+                {speakerName(speakers, current)}
+                <ChevronDown className="h-3 w-3 opacity-60" />
+            </button>
+            {open && (
+                <div role="menu" className="absolute left-0 z-10 mt-1.5 w-56 overflow-hidden rounded-xl border border-line bg-white py-1 shadow-lg">
+                    <div className="px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted">Who said this line?</div>
+                    {speakers.map(sp => (
+                        <button
+                            key={sp.id}
+                            role="menuitem"
+                            disabled={working}
+                            onClick={() => pick(sp.id)}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-canvas disabled:opacity-60">
+                            <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${speakerTone(speakers, sp.id)}`} />
+                            <span className="min-w-0 flex-1 truncate font-medium text-body">{sp.name}</span>
+                            {sp.id === current && <Check className="h-4 w-4 shrink-0 text-primary" />}
+                        </button>
+                    ))}
+                    <button
+                        role="menuitem"
+                        disabled={working}
+                        onClick={() => pick(newId)}
+                        className="flex w-full items-center gap-2 border-t border-line px-3 py-2 text-left text-sm font-medium text-primary hover:bg-canvas disabled:opacity-60">
+                        <UserPlus className="h-4 w-4 shrink-0" /> New speaker (Speaker {newId})
+                    </button>
+                </div>
+            )}
+        </div>
+    )
+}
+
 /** Only the row that is playing receives `activeTime`, so playback re-renders one row, not the whole transcript. */
 const SegmentRow = memo(function SegmentRow({
     index,
@@ -356,7 +445,7 @@ const SegmentRow = memo(function SegmentRow({
     showTime: boolean
     activeTime: number | null
     onSeek: (secs: number) => void
-    onSave: (index: number, text: string) => Promise<void>
+    onSave: (index: number, patch: SegmentPatch) => Promise<void>
     onEditStart: () => void
     onEditSaved: () => void
 }) {
@@ -366,6 +455,16 @@ const SegmentRow = memo(function SegmentRow({
     const [saving, setSaving] = useState(false)
     const active = activeTime !== null && !editing
     const original = segment.words.map(w => w.text).join(' ')
+
+    const changeSpeaker = async (speaker: string) => {
+        try {
+            await onSave(index, { speaker })
+            toast('Speaker changed for this line.')
+        } catch (err) {
+            toast(errorMessage(err), 'error')
+            throw err
+        }
+    }
 
     const startEdit = () => {
         setDraft(original)
@@ -382,7 +481,7 @@ const SegmentRow = memo(function SegmentRow({
         }
         setSaving(true)
         try {
-            await onSave(index, text)
+            await onSave(index, { text })
             setEditing(false)
             onEditSaved()
             toast('Correction saved.')
@@ -396,7 +495,7 @@ const SegmentRow = memo(function SegmentRow({
     return (
         <li className={`group px-4 py-3.5 transition sm:px-5 ${active ? 'bg-primary-mint/25' : ''} ${editing ? 'bg-canvas' : ''}`}>
             <div className="mb-1.5 flex items-center gap-2">
-                <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${speakerTone(speakers, segment.speaker)}`}>{speakerName(speakers, segment.speaker)}</span>
+                <SpeakerPicker speakers={speakers} current={segment.speaker} disabled={saving} onPick={changeSpeaker} />
                 {showTime && (
                     <button onClick={() => onSeek(segment.start)} className="font-mono text-xs text-muted hover:text-primary">
                         {formatTimestamp(segment.start)}

@@ -8,7 +8,7 @@ Next.js 14 (app router, TypeScript, Tailwind 3) frontend for **Traduksyon.com**.
 - `src/app/(auth)` — login, register (sends confirmation email; trial starts on confirm), verify-email/[id]/[hash], forgot-password, password-reset/[token], set-password/[token] (admin invitations). All use `AuthShell` (split brand panel on lg+, single column on phones).
 - **Email confirmation** (2026-11-21): `register()` no longer signs in — it resolves to the email and the register page swaps to a "Check your inbox" view. Login shows the `unverified` sentinel with a resend button; `?verified=1` shows a success note. `/verify-email/[id]/[hash]` forwards path + query to the API's `GET /email/verify/…` (runs once via a ref, StrictMode-safe). `(auth)/ResendVerification.tsx` is the shared resend form. `/verify-email` is in the middleware's public prefixes.
 - **Logout** always calls `csrf()` then `POST /logout` (retrying once on 419), whatever the SWR `error` state. A silently failed logout leaves the session and remember-me cookie in place, and `/login` sends the user straight back to `/home`.
-- `src/app/(app)/layout.tsx` — authenticated shell + **subscription gate**: if `user.subscription.access` is false, every route except `/billing`, `/settings`, `/users`, `/payments` redirects to `/billing?expired=1`.
+- `src/app/(app)/layout.tsx` — customer workspace shell + **subscription gate**: if `user.subscription.access` is false, every route except `/billing`, `/settings` redirects to `/billing?expired=1`. Admin pages are not under it (see Admin console).
 
 ## Layout / responsiveness
 - Phones: header + fixed `BottomNav` (Home / My meetings / Translate / Settings, matching the mobile mockup); modals are bottom sheets.
@@ -22,12 +22,13 @@ Tokens in `tailwind.config.ts`: `primary` #0D9488 (CTA/active), `primary-hover`/
 `public/manifest.json`, hand-written `public/sw.js` (static cache-first, navigations network-first → `/offline`, never touches API calls — they are cross-origin anyway), icons in `public/icons`. The SW only registers in production builds (`ServiceWorkerRegister.tsx`); set `NEXT_PUBLIC_ENABLE_SW_IN_DEV=1` to test under `next dev`. Bump `CACHE_VERSION` in `sw.js` to purge old caches. `useInstallPrompt` powers the "Install app" row in Settings (iOS gets Share → Add to Home Screen instructions).
 
 ## Billing pages
-`/billing` (status, plans, history), `/billing/return?payment=` (polls the API until the payment leaves `pending`), `/billing/checkout/[id]` (simulated checkout, only reached when the API runs `PAYMENT_DRIVER=fake`). `/payments` is the admin all-payments view. Money is in centavos; format with `formatMoney`. Dates use DD/MM/YYYY (`utils/format.ts`).
+`/billing` (status, plans, history), `/billing/return?payment=` (polls the API until the payment leaves `pending`), `/billing/checkout/[id]` (simulated checkout, only reached when the API runs `PAYMENT_DRIVER=fake`). `/admin/payments` is the admin all-payments view. Money is in centavos; format with `formatMoney`. Dates use DD/MM/YYYY (`utils/format.ts`).
 
 ## Transcribe (`/meetings`) — added 2026-11-21
 - `/meetings` lists transcriptions (polls every 4s while any are queued/processing); `?upload=1` opens the upload modal (Home's "Upload a recording" links there).
 - `components/transcribe/UploadModal.tsx` — file (drag-drop, upload progress), title, language (Bicol/Masbateño flagged beta), speaker count, mode Verbatim vs Clean ("in toto"), optional names/keyterms. Options come from `GET /api/transcriptions/options`.
 - `/meetings/[id]` — polls until done; audio player plus transcript "By speaker" (coloured Speaker A/B chips, click a word or timestamp to seek, current word highlighted; `SegmentRow` is memoised so playback re-renders only the active row) or "Plain text"; rename speakers, copy, download .txt, delete, retry on failure.
+- **Change who said a line**: the speaker chip on each `SegmentRow` is a `SpeakerPicker` menu that lists the existing speakers plus "New speaker (Speaker X)" (`nextSpeakerId` picks the first unused letter). It calls `saveSegment(index, { speaker })`, the same `PUT segments` call as text corrections (`SegmentPatch = { text?, speaker? }`). This only affects that line. The sidebar "Rename" modal renames a speaker everywhere.
 - **Edit a line**: pencil on each `SegmentRow` (hover on desktop, always visible on phones) → textarea, Save / Cancel / "Play this part", Ctrl+Enter / Esc. Saves via `PUT /api/transcriptions/{id}` `{segments:[{index,text}]}` and swaps in the returned transcription (`mutate(..., {revalidate:false})`); corrected rows show "edited". Copy/export pick up corrections automatically since they read `segments`. Opening the editor pauses the audio (`onEditStart`); Save resumes playback only if it was playing when editing began (`onEditSaved`, tracked in `resumeAfterEditRef`). Cancel leaves it paused.
 - Helpers (timestamps, language labels, speaker colours, text export): `components/transcribe/helpers.ts`.
 - **Export** (Download menu on `/meetings/[id]`): `components/transcribe/exportTranscript.ts` builds .docx (`docx`) / .pdf (`jspdf`) / .txt entirely in the browser, using current speaker names and the Timestamps toggle. Both libs are dynamic-imported so they only load on click. jsPDF uses built-in Helvetica (WinAnsi) — fine for Filipino/English incl. ñ, but non-Latin scripts would need an embedded TTF font.
@@ -56,3 +57,13 @@ Tokens in `tailwind.config.ts`: `primary` #0D9488 (CTA/active), `primary-hover`/
 
 ## Branding
 - Product name is **Traduksyon.com** (renamed from Traduksyon.io, 2026-11-21). Hard-coded in `app/layout.tsx` metadata, `AuthShell`, `Logo` alt, `public/manifest.json`, and the export helpers (docx `creator` + PDF footer). `logo-full.png` / `logo-mark.png` are images — check them if the wordmark shows the domain.
+
+## Customer workspace vs Admin console — added 2026-11-22
+- **Two shells in one app**, so they share the login session, `useAuth` and `components/ui`:
+  - `src/app/(app)/*` — customer workspace (Home, Transcribe/meetings, Minutes, Committee reports, Translate, Subscription, Settings = own profile). Nav in `components/layout/nav.ts`. A customer (role `User`) sees nothing else.
+  - `src/app/(admin)/admin/*` — admin console with its own dark sidebar (`components/admin/AdminSidebar.tsx`; `AdminTabs` on phones), no subscription gate, no bottom nav. Pages: `website` (marketing content), `inquiries` (contact-form leads), `users`, `payments`. Per-page permissions are in `components/admin/nav.ts` (`website.manage`, `users.access`, `billing.view_all_payments`). `canUseAdmin(user)` = has at least one of those, and drives the "Admin console" link in the sidebar, account menu and Settings. `/admin` redirects to the first allowed page.
+- `/users` and `/payments` moved to `/admin/users` and `/admin/payments`; `next.config.mjs` has permanent redirects for old bookmarks.
+- Put new admin-only pages in `(admin)/admin/` and add them to `ADMIN_NAV`. Don't add them to `NAV_ITEMS`.
+- **Website editor** (`/admin/website`): forms are generated from the API's `SiteSchema` (`components/admin/site/FieldInput.tsx` handles every field type, including reorderable `list` rows and the icon picker). Per-section drafts, unsaved-change dots, a beforeunload warning, Save / Discard / Restore default. Icon map: `components/admin/site/icons.ts`, which must match `SiteSchema::ICONS`.
+- `NEXT_PUBLIC_MARKETING_URL` — AuthShell links back to the marketing site.
+- `Logo.tsx` wordmark fixed from `.io` to `.com`.
