@@ -71,7 +71,7 @@ export default function RegisterPage() {
             title="Create your account"
             subtitle={
                 <span className="flex items-center gap-1.5">
-                    <CheckCircle2 className="h-4 w-4 text-success" /> 14 days free · No card required
+                    <CheckCircle2 className="h-4 w-4 text-success" /> Free credits on sign-up · No card required
                 </span>
             }
             footer={
